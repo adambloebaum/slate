@@ -26,7 +26,8 @@ Slate is a minimal, privacy-focused web browser built with Qt and Chromium. No h
 ## Download
 
 Download the latest release from the [Releases](../../releases) page.
-*Currently only for Windows*
+
+(*Currently only for Windows*)
 
 1. Download `Slate-vX.X.X-windows.zip`
 2. Extract the zip file

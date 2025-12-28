@@ -20,3 +20,6 @@ cmake-build-*/
 # OS files
 .DS_Store
 Thumbs.db
+
+# .bat files
+*.bat
