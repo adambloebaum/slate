@@ -1,0 +1,22 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Release packages
+*.zip
+
+# Qt Creator files
+*.pro.user
+*.qmlc
+*.jsc
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

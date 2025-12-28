@@ -1,0 +1,3 @@
+// Windows application icon
+// The icon with the lowest ID value is used as the application icon
+IDI_ICON1 ICON "icons/slate.ico"
