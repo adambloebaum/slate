@@ -4,6 +4,8 @@ A blank slate for web browsing.
 
 Slate is a minimal, privacy-focused web browser built with Qt and Chromium. No history. No bookmarks. No clutter. Just browsing.
 
+![Browser Screenshot](/docs/screenshot.png)
+
 ## Features
 
 - **Privacy First** - No persistent history, cookies, or cache. Every session starts fresh.
