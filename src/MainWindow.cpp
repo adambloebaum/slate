@@ -19,6 +19,11 @@
 #include <QMenu>
 #include <QApplication>
 #include <QPropertyAnimation>
+#include <QTimer>
+#include <QToolTip>
+#include <QCompleter>
+#include <QStringListModel>
+#include <QLabel>
 
 // Custom theme toggle switch
 class ThemeToggle : public QWidget
@@ -271,6 +276,13 @@ QRect SlateTabBar::closeButtonRect(int index) const
 
 void SlateTabBar::mousePressEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::MiddleButton) {
+        int index = tabAt(event->pos());
+        if (index >= 0) {
+            emit tabCloseRequested(index);
+            return;
+        }
+    }
     if (event->button() == Qt::LeftButton) {
         for (int i = 0; i < count(); ++i) {
             if (closeButtonRect(i).contains(event->pos())) {
@@ -284,6 +296,15 @@ void SlateTabBar::mousePressEvent(QMouseEvent *event)
 
 void SlateTabBar::mouseMoveEvent(QMouseEvent *event)
 {
+    int index = tabAt(event->pos());
+    if (index != m_lastHoverIndex) {
+        m_lastHoverIndex = index;
+        if (index >= 0) {
+            QToolTip::showText(mapToGlobal(event->pos()), tabText(index), this);
+        } else {
+            QToolTip::hideText();
+        }
+    }
     update();  // Repaint for hover effects
     QTabBar::mouseMoveEvent(event);
 }
@@ -299,19 +320,9 @@ MainWindow::MainWindow(QWidget *parent)
     setupUI();
     setupShortcuts();
     setupConnections();
-    setupTrayIcon();
 
-    // Configure for privacy - off-the-record profile, no persistent storage
-    m_profile = QWebEngineProfileBuilder::createOffTheRecordProfile(this);
-    m_profile->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
-    m_profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
-
-    // Set up ad blocker
-    m_adBlocker = new AdBlocker(this);
-    m_profile->setUrlRequestInterceptor(m_adBlocker);
-
-    // Open initial tab
-    onNewTab();
+    // Default to dark mode on launch
+    m_themeToggle->setDark(true);
 
     // Set window properties
     setWindowTitle("Slate");
@@ -324,6 +335,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Initialize tab bar width
     m_tabBar->setAvailableWidth(1200 - 150);  // Will be updated on resize
+
+    // Defer WebEngine initialization to speed up window appearance
+    QTimer::singleShot(0, this, &MainWindow::initializeWebEngine);
+    QTimer::singleShot(0, this, &MainWindow::setupTrayIcon);
 }
 
 void MainWindow::loadStylesheet()
@@ -434,6 +449,12 @@ void MainWindow::setupUI()
 
     // Address bar
     m_addressBar = new AddressBar();
+    m_urlModel = new QStringListModel(this);
+    m_urlCompleter = new QCompleter(m_urlModel, this);
+    m_urlCompleter->setCaseSensitivity(Qt::CaseInsensitive);
+    m_urlCompleter->setFilterMode(Qt::MatchContains);
+    m_urlCompleter->setCompletionMode(QCompleter::PopupCompletion);
+    m_addressBar->setCompleter(m_urlCompleter);
 
     // Theme toggle
     m_themeToggle = new ThemeToggle();
@@ -449,6 +470,16 @@ void MainWindow::setupUI()
     // === CONTENT AREA ===
     m_stackedWidget = new QStackedWidget();
     m_stackedWidget->setObjectName("contentArea");
+
+    // Placeholder while WebEngine initializes
+    m_placeholderWidget = new QWidget();
+    QVBoxLayout *placeholderLayout = new QVBoxLayout(m_placeholderWidget);
+    placeholderLayout->setContentsMargins(0, 0, 0, 0);
+    QLabel *placeholderLabel = new QLabel("Starting Slate...");
+    placeholderLabel->setAlignment(Qt::AlignCenter);
+    placeholderLayout->addWidget(placeholderLabel);
+    m_stackedWidget->addWidget(m_placeholderWidget);
+    m_stackedWidget->setCurrentWidget(m_placeholderWidget);
 
     // Add all to main layout
     m_mainLayout->addWidget(m_titleBar);
@@ -514,6 +545,27 @@ void MainWindow::setupConnections()
         if (prev < 0) prev = m_tabBar->count() - 1;
         m_tabBar->setCurrentIndex(prev);
     });
+}
+
+void MainWindow::initializeWebEngine()
+{
+    if (m_webEngineInitialized) {
+        return;
+    }
+    m_webEngineInitialized = true;
+
+    // Configure for privacy - off-the-record profile, no persistent storage
+    m_profile = QWebEngineProfileBuilder::createOffTheRecordProfile(this);
+    m_profile->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
+    m_profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
+    m_profile->setPersistentPermissionsPolicy(QWebEngineProfile::PersistentPermissionsPolicy::AskEveryTime);
+
+    // Set up ad blocker
+    m_adBlocker = new AdBlocker(this);
+    m_profile->setUrlRequestInterceptor(m_adBlocker);
+
+    // Open initial tab
+    onNewTab();
 }
 
 // Window control slots
@@ -751,6 +803,12 @@ void MainWindow::onNewTab()
     settings->setAttribute(QWebEngineSettings::JavascriptEnabled, true);
     settings->setAttribute(QWebEngineSettings::ScrollAnimatorEnabled, true);
 
+    // Deny permission requests by default for privacy
+    connect(page, &QWebEnginePage::featurePermissionRequested,
+        [page](const QUrl &securityOrigin, QWebEnginePage::Feature feature) {
+            page->setFeaturePermission(securityOrigin, feature, QWebEnginePage::PermissionDeniedByUser);
+        });
+
     // Connect view signals
     connect(view, &QWebEngineView::urlChanged, this, &MainWindow::onUrlChanged);
     connect(view, &QWebEngineView::titleChanged, this, &MainWindow::onTitleChanged);
@@ -765,6 +823,12 @@ void MainWindow::onNewTab()
 
     // Add to stacked widget
     int stackIndex = m_stackedWidget->addWidget(view);
+
+    if (m_placeholderWidget) {
+        m_stackedWidget->removeWidget(m_placeholderWidget);
+        m_placeholderWidget->deleteLater();
+        m_placeholderWidget = nullptr;
+    }
 
     // Add tab with "New Tab" title (not about:blank)
     int tabIndex = m_tabBar->addTab("New Tab");
@@ -829,6 +893,7 @@ void MainWindow::onUrlChanged(const QUrl &url)
 {
     QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
     if (view && view == currentWebView()) {
+        addToHistory(url);
         QString urlStr = url.toString();
         if (urlStr.isEmpty() || urlStr == "about:blank" || urlStr.startsWith("data:")) {
             m_addressBar->clear();
@@ -908,6 +973,28 @@ void MainWindow::updateNavigationButtons()
     if (auto *view = currentWebView()) {
         m_backButton->setEnabled(view->history()->canGoBack());
         m_forwardButton->setEnabled(view->history()->canGoForward());
+    }
+}
+
+void MainWindow::addToHistory(const QUrl &url)
+{
+    if (!url.isValid()) {
+        return;
+    }
+    QString scheme = url.scheme().toLower();
+    if (scheme != "http" && scheme != "https") {
+        return;
+    }
+    QString urlStr = url.toString();
+    if (urlStr.isEmpty() || urlStr == "about:blank" || urlStr.startsWith("data:")) {
+        return;
+    }
+    if (!m_urlHistorySet.contains(urlStr)) {
+        m_urlHistorySet.insert(urlStr);
+        m_urlHistory.append(urlStr);
+        if (m_urlModel) {
+            m_urlModel->setStringList(m_urlHistory);
+        }
     }
 }
 

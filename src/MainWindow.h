@@ -15,12 +15,16 @@
 #include <QStackedWidget>
 #include <QPoint>
 #include <QSystemTrayIcon>
+#include <QSet>
+#include <QStringList>
 #include "AddressBar.h"
 #include "AdBlocker.h"
 
 class QWebEngineView;
 class QWebEngineProfile;
 class ThemeToggle;
+class QCompleter;
+class QStringListModel;
 
 class SlateTabBar : public QTabBar
 {
@@ -41,6 +45,7 @@ private:
     int calculateTabWidth() const;
     bool m_isDark = false;
     int m_availableWidth = 800;
+    int m_lastHoverIndex = -1;
     static constexpr int NORMAL_TAB_WIDTH = 200;
     static constexpr int MIN_TAB_WIDTH = 80;
     static constexpr int TABS_BEFORE_SHRINK = 5;
@@ -85,9 +90,11 @@ private:
     void setupShortcuts();
     void setupConnections();
     void setupTrayIcon();
+    void initializeWebEngine();
     void loadStylesheet();
     void applyTheme(bool isDark);
     void updateNavigationButtons();
+    void addToHistory(const QUrl &url);
     QString formatUrl(const QString &input);
     QWebEngineView* currentWebView() const;
     QWebEngineView* webViewAt(int index) const;
@@ -119,6 +126,7 @@ private:
 
     // Content area
     QStackedWidget *m_stackedWidget = nullptr;
+    QWidget *m_placeholderWidget = nullptr;
 
     // Theme toggle
     ThemeToggle *m_themeToggle = nullptr;
@@ -130,6 +138,13 @@ private:
     // Ad blocker
     AdBlocker *m_adBlocker = nullptr;
     QWebEngineProfile *m_profile = nullptr;
+    bool m_webEngineInitialized = false;
+
+    // In-session history for address bar suggestions
+    QCompleter *m_urlCompleter = nullptr;
+    QStringListModel *m_urlModel = nullptr;
+    QStringList m_urlHistory;
+    QSet<QString> m_urlHistorySet;
 
     // Shortcuts
     QShortcut *m_newTabShortcut = nullptr;
