@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QWebEngineView>
 #include <QWebEngineProfile>
+#include <QWebEngineProfileBuilder>
 #include <QWebEngineSettings>
 #include <QWebEngineHistory>
 #include <QWebEnginePage>
@@ -300,14 +301,14 @@ MainWindow::MainWindow(QWidget *parent)
     setupConnections();
     setupTrayIcon();
 
-    // Configure for privacy - no persistent storage
-    auto *profile = QWebEngineProfile::defaultProfile();
-    profile->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
-    profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
+    // Configure for privacy - off-the-record profile, no persistent storage
+    m_profile = QWebEngineProfileBuilder::createOffTheRecordProfile(this);
+    m_profile->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
+    m_profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
 
     // Set up ad blocker
     m_adBlocker = new AdBlocker(this);
-    profile->setUrlRequestInterceptor(m_adBlocker);
+    m_profile->setUrlRequestInterceptor(m_adBlocker);
 
     // Open initial tab
     onNewTab();
@@ -480,6 +481,8 @@ void MainWindow::setupConnections()
 
     // Address bar
     connect(m_addressBar, &AddressBar::urlEntered, this, &MainWindow::onNavigate);
+    connect(m_addressBar, &AddressBar::focusGained, this, &MainWindow::onAddressFocusGained);
+    connect(m_addressBar, &AddressBar::focusLost, this, &MainWindow::onAddressFocusLost);
 
     // Tab bar
     connect(m_tabBar, &QTabBar::currentChanged, this, &MainWindow::onTabChanged);
@@ -740,6 +743,8 @@ void MainWindow::onNewTab()
 {
     QWebEngineView *view = new QWebEngineView();
     view->setObjectName("webView");
+    QWebEnginePage *page = new QWebEnginePage(m_profile, view);
+    view->setPage(page);
 
     // Configure web settings
     QWebEngineSettings *settings = view->settings();
@@ -849,6 +854,30 @@ void MainWindow::onTitleChanged(const QString &title)
 
             // Keep the full title - let the tab bar elide it
             m_tabBar->setTabText(index, displayTitle);
+        }
+    }
+}
+
+void MainWindow::onAddressFocusGained()
+{
+    if (auto *view = currentWebView()) {
+        QUrl url = view->url();
+        QString urlStr = url.toString();
+        if (!urlStr.isEmpty() && urlStr != "about:blank" && !urlStr.startsWith("data:")) {
+            m_addressBar->setText(urlStr);
+        }
+    }
+}
+
+void MainWindow::onAddressFocusLost()
+{
+    if (auto *view = currentWebView()) {
+        QUrl url = view->url();
+        QString urlStr = url.toString();
+        if (urlStr.isEmpty() || urlStr == "about:blank" || urlStr.startsWith("data:")) {
+            m_addressBar->clear();
+        } else {
+            m_addressBar->setText(url.host().isEmpty() ? urlStr : url.host());
         }
     }
 }

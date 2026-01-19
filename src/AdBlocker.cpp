@@ -9,8 +9,8 @@
 AdBlocker::AdBlocker(QObject *parent)
     : QWebEngineUrlRequestInterceptor(parent)
 {
-    // Common ad and tracking domains
-    m_blockedDomains = {
+    // Common ad and tracking domains or URL patterns
+    QStringList rawList = {
         // Google Ads
         "doubleclick.net",
         "googlesyndication.com",
@@ -22,7 +22,6 @@ AdBlocker::AdBlocker(QObject *parent)
         "adservice.google.com",
 
         // Facebook/Meta
-        "facebook.com/tr",
         "connect.facebook.net",
         "pixel.facebook.com",
 
@@ -120,7 +119,18 @@ AdBlocker::AdBlocker(QObject *parent)
         "revcontent.com",
         "mgid.com",
         "contentabc.com",
+
+        // Path-based trackers
+        "facebook.com/tr",
     };
+
+    for (const QString &entry : rawList) {
+        if (entry.contains('/')) {
+            m_blockedUrlPatterns.append(entry.toLower());
+        } else {
+            m_blockedDomains.insert(entry.toLower());
+        }
+    }
 }
 
 bool AdBlocker::shouldBlock(const QUrl &url) const
@@ -136,6 +146,14 @@ bool AdBlocker::shouldBlock(const QUrl &url) const
         int dot = host.indexOf('.');
         if (dot == -1) break;
         host = host.mid(dot + 1);
+    }
+
+    // Check full URL string for known patterns
+    QString fullUrl = url.toString().toLower();
+    for (const QString &pattern : m_blockedUrlPatterns) {
+        if (fullUrl.contains(pattern)) {
+            return true;
+        }
     }
 
     // Check URL path for common ad patterns

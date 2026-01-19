@@ -1,0 +1,3 @@
+#pragma once
+
+#define SLATE_VERSION "@Slate_VERSION@"

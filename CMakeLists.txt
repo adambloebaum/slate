@@ -4,7 +4,11 @@
 # Requires Qt 6.x with WebEngineWidgets component.
 
 cmake_minimum_required(VERSION 3.16)
-project(Slate VERSION 0.1.0 LANGUAGES CXX)
+
+# Read version from VERSION.txt (single source of truth)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" SLATE_VERSION)
+string(STRIP "${SLATE_VERSION}" SLATE_VERSION)
+project(Slate VERSION ${SLATE_VERSION} LANGUAGES CXX)
 
 # Require C++17 for modern features
 set(CMAKE_CXX_STANDARD 17)
@@ -36,6 +40,14 @@ if(WIN32)
 endif()
 
 add_executable(Slate ${SLATE_SOURCES})
+
+# Generate a version header from CMake project version
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/Version.h.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/Version.h"
+    @ONLY
+)
+target_include_directories(Slate PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 # Link against Qt libraries
 target_link_libraries(Slate PRIVATE

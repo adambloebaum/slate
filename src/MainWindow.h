@@ -19,6 +19,7 @@
 #include "AdBlocker.h"
 
 class QWebEngineView;
+class QWebEngineProfile;
 class ThemeToggle;
 
 class SlateTabBar : public QTabBar
@@ -76,6 +77,8 @@ private slots:
     void onClose();
     void onTrayActivated(QSystemTrayIcon::ActivationReason reason);
     void onThemeToggled(bool isDark);
+    void onAddressFocusGained();
+    void onAddressFocusLost();
 
 private:
     void setupUI();
@@ -126,6 +129,7 @@ private:
 
     // Ad blocker
     AdBlocker *m_adBlocker = nullptr;
+    QWebEngineProfile *m_profile = nullptr;
 
     // Shortcuts
     QShortcut *m_newTabShortcut = nullptr;

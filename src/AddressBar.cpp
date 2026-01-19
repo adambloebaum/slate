@@ -22,8 +22,15 @@ AddressBar::AddressBar(QWidget *parent)
 void AddressBar::focusInEvent(QFocusEvent *event)
 {
     QLineEdit::focusInEvent(event);
+    emit focusGained();
     // Select all text when focused
     QTimer::singleShot(0, this, &QLineEdit::selectAll);
+}
+
+void AddressBar::focusOutEvent(QFocusEvent *event)
+{
+    QLineEdit::focusOutEvent(event);
+    emit focusLost();
 }
 
 void AddressBar::keyPressEvent(QKeyEvent *event)

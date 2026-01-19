@@ -9,6 +9,7 @@
 #include <QWebEngineUrlRequestInterceptor>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 class AdBlocker : public QWebEngineUrlRequestInterceptor
 {
@@ -22,6 +23,7 @@ public:
 private:
     bool shouldBlock(const QUrl &url) const;
     QSet<QString> m_blockedDomains;
+    QStringList m_blockedUrlPatterns;
     int m_blockedCount = 0;
 };
 

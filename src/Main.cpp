@@ -6,6 +6,7 @@
 #include <QApplication>
 #include <QtWebEngineQuick>
 #include "MainWindow.h"
+#include "Version.h"
 
 int main(int argc, char *argv[])
 {
@@ -17,7 +18,7 @@ int main(int argc, char *argv[])
     // Application metadata
     QApplication::setApplicationName("Slate");
     QApplication::setOrganizationName("Slate");
-    QApplication::setApplicationVersion("0.1.0");
+    QApplication::setApplicationVersion(SLATE_VERSION);
 
     MainWindow window;
     window.show();

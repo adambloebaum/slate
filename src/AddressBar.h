@@ -18,9 +18,12 @@ public:
 
 signals:
     void urlEntered(const QString &url);
+    void focusGained();
+    void focusLost();
 
 protected:
     void focusInEvent(QFocusEvent *event) override;
+    void focusOutEvent(QFocusEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
 };
 
