@@ -12,7 +12,7 @@ Slate is a minimal, privacy-focused web browser built with Qt 6 and Chromium. No
 - **HTTPS-Only** — All connections automatically upgraded to HTTPS.
 - **Native Ad Blocking** — Built-in blocker for 100+ ad networks and trackers, with support for external blocklists.
 - **Minimal UI** — Clean, refined interface with just tabs and an address bar. Custom-painted tab bar with favicon support.
-- **Dark & Light Themes** — Toggle between polished dark and light themes. Dark by default.
+- **Dark & Light Themes** — Toggle between polished dark and light themes with themed scrollbars. Dark by default.
 - **Fast Start** — UI appears immediately while the engine initializes in the background.
 - **Find in Page** — Search within pages with match highlighting.
 - **Zoom Controls** — Per-tab zoom with keyboard shortcuts.
@@ -41,7 +41,17 @@ Slate is a minimal, privacy-focused web browser built with Qt 6 and Chromium. No
 | `F12` | Developer tools |
 | `Esc` | Exit fullscreen / close find bar |
 
-## Build (Windows)
+## Install (Windows)
+
+Download the latest installer from the [Releases](../../releases) page.
+
+1. Download `Slate-v1.0.0-windows.msi`
+2. Run the installer — installs to `Program Files\Slate` with a Start Menu shortcut
+3. Launch Slate from the Start Menu or `Slate.exe`
+
+Portable zip also available — extract and run, no install required.
+
+## Build from Source
 
 **Requirements:** Qt 6 with WebEngine, MSVC 2022, CMake 3.16+
 
@@ -62,13 +72,3 @@ Place a `blocklist.txt` file next to `Slate.exe` to load additional blocked doma
 - One domain per line: `ads.example.com`
 - Hosts file format: `0.0.0.0 ads.example.com`
 - Comments with `#`
-
-## Download
-
-Download the latest release from the [Releases](../../releases) page.
-
-(*Windows-only*)
-
-1. Download `Slate-vX.X.X-windows.zip`
-2. Extract the zip file
-3. Run `Slate.exe`
