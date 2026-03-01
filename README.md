@@ -1,6 +1,6 @@
 # Slate
 
-A blank slate for web browsing.
+Your blank slate for web browsing.
 
 Slate is a minimal, privacy-focused web browser built with Qt 6 and Chromium. No history. No bookmarks. No clutter. Just browsing.
 
