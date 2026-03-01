@@ -5,6 +5,11 @@
 
 #include "AdBlocker.h"
 #include <QUrl>
+#include <QFile>
+#include <QTextStream>
+#include <QCoreApplication>
+#include <QDir>
+#include <QRegularExpression>
 
 AdBlocker::AdBlocker(QObject *parent)
     : QWebEngineUrlRequestInterceptor(parent)
@@ -131,6 +136,51 @@ AdBlocker::AdBlocker(QObject *parent)
             m_blockedDomains.insert(entry.toLower());
         }
     }
+
+    // Load additional blocklist from file next to executable (if present)
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString hostsPath = appDir + "/blocklist.txt";
+    loadHostsFile(hostsPath);
+}
+
+int AdBlocker::loadHostsFile(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return 0;
+    }
+
+    int added = 0;
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+
+        // Skip comments and empty lines
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+
+        // Handle hosts-file format: "0.0.0.0 domain" or "127.0.0.1 domain"
+        QString domain;
+        if (line.startsWith("0.0.0.0") || line.startsWith("127.0.0.1")) {
+            QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+            if (parts.size() >= 2) {
+                domain = parts[1].toLower();
+            }
+        } else {
+            // Plain domain per line
+            domain = line.split('#').first().trimmed().toLower();
+        }
+
+        if (!domain.isEmpty() && domain != "localhost" && domain.contains('.')) {
+            if (!m_blockedDomains.contains(domain)) {
+                m_blockedDomains.insert(domain);
+                added++;
+            }
+        }
+    }
+
+    return added;
 }
 
 bool AdBlocker::shouldBlock(const QUrl &url) const
@@ -171,7 +221,17 @@ bool AdBlocker::shouldBlock(const QUrl &url) const
 
 void AdBlocker::interceptRequest(QWebEngineUrlRequestInfo &info)
 {
-    if (shouldBlock(info.requestUrl())) {
+    QUrl url = info.requestUrl();
+
+    // HTTPS-only: upgrade HTTP navigations to HTTPS
+    if (url.scheme() == "http") {
+        QUrl httpsUrl = url;
+        httpsUrl.setScheme("https");
+        info.redirect(httpsUrl);
+        return;
+    }
+
+    if (shouldBlock(url)) {
         info.block(true);
         m_blockedCount++;
     }

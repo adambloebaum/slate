@@ -11,6 +11,8 @@
 #include <QWebEngineHistory>
 #include <QWebEnginePage>
 #include <QWebEngineNewWindowRequest>
+#include <QWebEngineFullScreenRequest>
+#include <QWebEngineCertificateError>
 #include <QUrl>
 #include <QMouseEvent>
 #include <QResizeEvent>
@@ -24,6 +26,15 @@
 #include <QCompleter>
 #include <QStringListModel>
 #include <QLabel>
+#include <QProgressBar>
+#include <QLineEdit>
+#include <QWebEngineDownloadRequest>
+#include <QFileDialog>
+#include <QStandardPaths>
+#include <QDir>
+#include <QSplitter>
+#include <QDesktopServices>
+#include "Version.h"
 
 // Custom theme toggle switch
 class ThemeToggle : public QWidget
@@ -231,8 +242,19 @@ void SlateTabBar::paintEvent(QPaintEvent *event)
         int closeY = centerY - closeSize / 2;
         QRect closeRect(closeX, closeY, closeSize, closeSize);
 
+        // Draw favicon if present
+        int textLeftOffset = 14;
+        QIcon favicon = m_favicons.value(i, QIcon());
+        if (!favicon.isNull()) {
+            int iconSize = 16;
+            int iconX = bgRect.left() + 10;
+            int iconY = centerY - iconSize / 2;
+            favicon.paint(&painter, iconX, iconY, iconSize, iconSize);
+            textLeftOffset = 32;  // Push text right to make room for icon
+        }
+
         // Draw text - LEFT ALIGNED, vertically centered
-        QRect textRect(bgRect.left() + 14, bgRect.top(), closeRect.left() - bgRect.left() - 20, bgRect.height());
+        QRect textRect(bgRect.left() + textLeftOffset, bgRect.top(), closeRect.left() - bgRect.left() - textLeftOffset - 6, bgRect.height());
         QColor textColor;
         if (m_isDark) {
             textColor = isSelected ? QColor("#e0e0e0") : QColor("#909090");
@@ -292,6 +314,17 @@ void SlateTabBar::mousePressEvent(QMouseEvent *event)
         }
     }
     QTabBar::mousePressEvent(event);
+}
+
+void SlateTabBar::setTabFavicon(int index, const QIcon &icon)
+{
+    m_favicons[index] = icon;
+    update();
+}
+
+QIcon SlateTabBar::tabFavicon(int index) const
+{
+    return m_favicons.value(index, QIcon());
 }
 
 void SlateTabBar::mouseMoveEvent(QMouseEvent *event)
@@ -467,6 +500,15 @@ void MainWindow::setupUI()
     m_navLayout->addSpacing(10);
     m_navLayout->addWidget(m_themeToggle);
 
+    // === PROGRESS BAR (Feature 3) ===
+    m_progressBar = new QProgressBar();
+    m_progressBar->setObjectName("loadingBar");
+    m_progressBar->setFixedHeight(3);
+    m_progressBar->setTextVisible(false);
+    m_progressBar->setRange(0, 100);
+    m_progressBar->setValue(0);
+    m_progressBar->hide();
+
     // === CONTENT AREA ===
     m_stackedWidget = new QStackedWidget();
     m_stackedWidget->setObjectName("contentArea");
@@ -481,10 +523,54 @@ void MainWindow::setupUI()
     m_stackedWidget->addWidget(m_placeholderWidget);
     m_stackedWidget->setCurrentWidget(m_placeholderWidget);
 
+    // === PERMISSION TOAST (Feature 9) ===
+    m_toastLabel = new QLabel(m_stackedWidget);
+    m_toastLabel->setObjectName("permissionToast");
+    m_toastLabel->setFixedHeight(36);
+    m_toastLabel->setAlignment(Qt::AlignCenter);
+    m_toastLabel->hide();
+
+    // === FIND BAR (Feature 1) ===
+    setupFindBar();
+
+    // === DOWNLOAD BAR (Feature 10) ===
+    m_downloadBar = new QWidget();
+    m_downloadBar->setObjectName("downloadBar");
+    m_downloadBar->setFixedHeight(44);
+    m_downloadBar->hide();
+
+    QHBoxLayout *dlLayout = new QHBoxLayout(m_downloadBar);
+    dlLayout->setContentsMargins(12, 4, 12, 4);
+    dlLayout->setSpacing(8);
+
+    m_downloadLabel = new QLabel();
+    m_downloadLabel->setObjectName("downloadLabel");
+
+    m_downloadProgress = new QProgressBar();
+    m_downloadProgress->setObjectName("downloadProgress");
+    m_downloadProgress->setFixedWidth(200);
+    m_downloadProgress->setFixedHeight(6);
+    m_downloadProgress->setTextVisible(false);
+    m_downloadProgress->setRange(0, 100);
+
+    m_downloadCloseBtn = new QPushButton("✕");
+    m_downloadCloseBtn->setObjectName("findCloseButton");
+    m_downloadCloseBtn->setFixedSize(32, 32);
+    m_downloadCloseBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_downloadCloseBtn, &QPushButton::clicked, m_downloadBar, &QWidget::hide);
+
+    dlLayout->addWidget(m_downloadLabel);
+    dlLayout->addWidget(m_downloadProgress);
+    dlLayout->addStretch();
+    dlLayout->addWidget(m_downloadCloseBtn);
+
     // Add all to main layout
     m_mainLayout->addWidget(m_titleBar);
     m_mainLayout->addWidget(m_navBar);
+    m_mainLayout->addWidget(m_progressBar);
     m_mainLayout->addWidget(m_stackedWidget, 1);
+    m_mainLayout->addWidget(m_findBar);
+    m_mainLayout->addWidget(m_downloadBar);
 }
 
 void MainWindow::setupShortcuts()
@@ -495,6 +581,25 @@ void MainWindow::setupShortcuts()
     m_focusAddressShortcut = new QShortcut(QKeySequence("Ctrl+L"), this);
     m_nextTabShortcut = new QShortcut(QKeySequence("Ctrl+Tab"), this);
     m_prevTabShortcut = new QShortcut(QKeySequence("Ctrl+Shift+Tab"), this);
+
+    // Feature 1: Find in page
+    m_findShortcut = new QShortcut(QKeySequence("Ctrl+F"), this);
+
+    // Feature 2: Zoom
+    m_zoomInShortcut = new QShortcut(QKeySequence("Ctrl++"), this);
+    m_zoomInShortcut2 = new QShortcut(QKeySequence("Ctrl+="), this);
+    m_zoomOutShortcut = new QShortcut(QKeySequence("Ctrl+-"), this);
+    m_zoomResetShortcut = new QShortcut(QKeySequence("Ctrl+0"), this);
+
+    // Feature 5: Fullscreen
+    m_fullscreenShortcut = new QShortcut(QKeySequence("F11"), this);
+    m_escapeFullscreenShortcut = new QShortcut(QKeySequence("Escape"), this);
+
+    // Feature 11: Print
+    m_printShortcut = new QShortcut(QKeySequence("Ctrl+P"), this);
+
+    // Feature 12: DevTools
+    m_devToolsShortcut = new QShortcut(QKeySequence("F12"), this);
 }
 
 void MainWindow::setupConnections()
@@ -545,6 +650,28 @@ void MainWindow::setupConnections()
         if (prev < 0) prev = m_tabBar->count() - 1;
         m_tabBar->setCurrentIndex(prev);
     });
+
+    // Feature 1: Find in page
+    connect(m_findShortcut, &QShortcut::activated, this, &MainWindow::onFindInPage);
+
+    // Feature 2: Zoom
+    connect(m_zoomInShortcut, &QShortcut::activated, this, &MainWindow::onZoomIn);
+    connect(m_zoomInShortcut2, &QShortcut::activated, this, &MainWindow::onZoomIn);
+    connect(m_zoomOutShortcut, &QShortcut::activated, this, &MainWindow::onZoomOut);
+    connect(m_zoomResetShortcut, &QShortcut::activated, this, &MainWindow::onZoomReset);
+
+    // Feature 5: Fullscreen
+    connect(m_fullscreenShortcut, &QShortcut::activated, this, &MainWindow::onToggleFullscreen);
+    connect(m_escapeFullscreenShortcut, &QShortcut::activated, [this]() {
+        if (m_isFullscreen) onToggleFullscreen();
+        else if (m_findBar->isVisible()) onFindClose();
+    });
+
+    // Feature 11: Print
+    connect(m_printShortcut, &QShortcut::activated, this, &MainWindow::onPrint);
+
+    // Feature 12: DevTools
+    connect(m_devToolsShortcut, &QShortcut::activated, this, &MainWindow::onToggleDevTools);
 }
 
 void MainWindow::initializeWebEngine()
@@ -563,6 +690,9 @@ void MainWindow::initializeWebEngine()
     // Set up ad blocker
     m_adBlocker = new AdBlocker(this);
     m_profile->setUrlRequestInterceptor(m_adBlocker);
+
+    // Feature 10: Download handling
+    connect(m_profile, &QWebEngineProfile::downloadRequested, this, &MainWindow::onDownloadRequested);
 
     // Open initial tab
     onNewTab();
@@ -617,6 +747,7 @@ void MainWindow::setupTrayIcon()
         activateWindow();
     });
     trayMenu->addAction("New Tab", this, &MainWindow::onNewTab);
+    trayMenu->addAction("About Slate", this, &MainWindow::onAboutPage);
     trayMenu->addSeparator();
     trayMenu->addAction("Exit", this, &QApplication::quit);
     m_trayIcon->setContextMenu(trayMenu);
@@ -716,6 +847,72 @@ void MainWindow::applyTheme(bool isDark)
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
                 font-size: 13px;
             }
+            #loadingBar {
+                background-color: transparent;
+                border: none;
+                max-height: 3px;
+            }
+            #loadingBar::chunk {
+                background-color: #4a9eff;
+                border-radius: 1px;
+            }
+            #findBar {
+                background-color: #2d2d2d;
+                border-top: 1px solid #3c3c3c;
+            }
+            #findEdit {
+                background-color: #3c3c3c;
+                border: 1px solid #4a4a4a;
+                border-radius: 6px;
+                color: #e0e0e0;
+                padding: 0px 10px;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 13px;
+            }
+            #findEdit:focus { border-color: #4a9eff; }
+            #findLabel { color: #909090; font-size: 12px; }
+            #findButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+                color: #b0b0b0;
+                font-size: 12px;
+            }
+            #findButton:hover { background-color: #404040; }
+            #findCloseButton {
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+                color: #909090;
+                font-size: 14px;
+            }
+            #findCloseButton:hover { background-color: #404040; color: #e0e0e0; }
+            #permissionToast {
+                background-color: #2d2d2d;
+                color: #e0e0e0;
+                border-bottom: 1px solid #3c3c3c;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 13px;
+                padding: 0px 16px;
+            }
+            #downloadBar {
+                background-color: #2d2d2d;
+                border-top: 1px solid #3c3c3c;
+            }
+            #downloadLabel {
+                color: #e0e0e0;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 13px;
+            }
+            #downloadProgress {
+                background-color: #3c3c3c;
+                border: none;
+                border-radius: 3px;
+            }
+            #downloadProgress::chunk {
+                background-color: #4a9eff;
+                border-radius: 3px;
+            }
         )";
     } else {
         // Load default light stylesheet from resources
@@ -802,16 +999,76 @@ void MainWindow::onNewTab()
     QWebEngineSettings *settings = view->settings();
     settings->setAttribute(QWebEngineSettings::JavascriptEnabled, true);
     settings->setAttribute(QWebEngineSettings::ScrollAnimatorEnabled, true);
+    settings->setAttribute(QWebEngineSettings::FullScreenSupportEnabled, true);
 
-    // Deny permission requests by default for privacy
+    // Deny permission requests by default for privacy, with visible notification
     connect(page, &QWebEnginePage::featurePermissionRequested,
-        [page](const QUrl &securityOrigin, QWebEnginePage::Feature feature) {
+        [this, page](const QUrl &securityOrigin, QWebEnginePage::Feature feature) {
             page->setFeaturePermission(securityOrigin, feature, QWebEnginePage::PermissionDeniedByUser);
+
+            // Show toast with human-readable feature name
+            QString featureName;
+            switch (feature) {
+                case QWebEnginePage::MediaAudioCapture: featureName = "Microphone"; break;
+                case QWebEnginePage::MediaVideoCapture: featureName = "Camera"; break;
+                case QWebEnginePage::MediaAudioVideoCapture: featureName = "Camera & Microphone"; break;
+                case QWebEnginePage::Geolocation: featureName = "Location"; break;
+                case QWebEnginePage::DesktopVideoCapture: featureName = "Screen sharing"; break;
+                case QWebEnginePage::DesktopAudioVideoCapture: featureName = "Screen sharing"; break;
+                case QWebEnginePage::Notifications: featureName = "Notifications"; break;
+                case QWebEnginePage::ClipboardReadWrite: featureName = "Clipboard"; break;
+                default: featureName = "Permission"; break;
+            }
+            showPermissionToast(featureName + " blocked — " + securityOrigin.host());
         });
 
     // Connect view signals
     connect(view, &QWebEngineView::urlChanged, this, &MainWindow::onUrlChanged);
     connect(view, &QWebEngineView::titleChanged, this, &MainWindow::onTitleChanged);
+
+    // Feature 3: Loading progress
+    connect(view, &QWebEngineView::loadStarted, this, &MainWindow::onLoadStarted);
+    connect(view, &QWebEngineView::loadProgress, this, &MainWindow::onLoadProgress);
+    connect(view, &QWebEngineView::loadFinished, this, &MainWindow::onLoadFinished);
+
+    // Feature 4: Favicon
+    connect(view, &QWebEngineView::iconChanged, this, &MainWindow::onIconChanged);
+
+    // Feature 5: Fullscreen support for HTML5 video
+    connect(page, &QWebEnginePage::fullScreenRequested, this, &MainWindow::onFullScreenRequested);
+
+    // Feature 8: Certificate error handling — reject and show warning
+    connect(page, &QWebEnginePage::certificateError, [this, view](QWebEngineCertificateError error) {
+        error.rejectCertificate();
+        QString errorHtml = QString(R"(
+            <!DOCTYPE html><html><head><style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: -apple-system, "Segoe UI", sans-serif; display: flex;
+                   align-items: center; justify-content: center; height: 100vh;
+                   background-color: %1; color: %2; }
+            .container { text-align: center; max-width: 500px; padding: 40px; }
+            .icon { font-size: 64px; margin-bottom: 20px; }
+            h1 { font-size: 22px; font-weight: 600; margin-bottom: 12px; }
+            p { font-size: 14px; color: %3; line-height: 1.6; }
+            .url { font-family: monospace; font-size: 13px; color: %4;
+                   background: %5; padding: 4px 8px; border-radius: 4px; margin-top: 16px; display: inline-block; }
+            </style></head><body>
+            <div class="container">
+                <div class="icon">⚠</div>
+                <h1>Connection Not Secure</h1>
+                <p>Slate blocked this connection because the site's certificate is not trusted. This protects your data from being intercepted.</p>
+                <div class="url">%6</div>
+            </div></body></html>
+        )").arg(
+            m_isDarkMode ? "#1e1e1e" : "#ffffff",
+            m_isDarkMode ? "#e0e0e0" : "#303030",
+            m_isDarkMode ? "#909090" : "#606060",
+            m_isDarkMode ? "#e0a030" : "#b07020",
+            m_isDarkMode ? "#2d2d2d" : "#f5f5f5",
+            error.url().host().toHtmlEscaped()
+        );
+        view->setHtml(errorHtml, error.url());
+    });
 
     // Handle new window requests (target="_blank" links)
     connect(view->page(), &QWebEnginePage::newWindowRequested, [this](QWebEngineNewWindowRequest &request) {
@@ -1008,6 +1265,384 @@ QWebEngineView* MainWindow::webViewAt(int index) const
     return qobject_cast<QWebEngineView*>(m_stackedWidget->widget(index));
 }
 
+// === FEATURE 1: Find in Page ===
+
+void MainWindow::setupFindBar()
+{
+    m_findBar = new QWidget();
+    m_findBar->setObjectName("findBar");
+    m_findBar->setFixedHeight(44);
+    m_findBar->hide();
+
+    QHBoxLayout *findLayout = new QHBoxLayout(m_findBar);
+    findLayout->setContentsMargins(12, 4, 12, 4);
+    findLayout->setSpacing(6);
+
+    m_findEdit = new QLineEdit();
+    m_findEdit->setObjectName("findEdit");
+    m_findEdit->setPlaceholderText("Find in page...");
+    m_findEdit->setFixedWidth(280);
+    m_findEdit->setFixedHeight(32);
+
+    m_findLabel = new QLabel();
+    m_findLabel->setObjectName("findLabel");
+
+    m_findPrevBtn = new QPushButton("▲");
+    m_findPrevBtn->setObjectName("findButton");
+    m_findPrevBtn->setFixedSize(32, 32);
+    m_findPrevBtn->setToolTip("Previous match");
+    m_findPrevBtn->setCursor(Qt::PointingHandCursor);
+
+    m_findNextBtn = new QPushButton("▼");
+    m_findNextBtn->setObjectName("findButton");
+    m_findNextBtn->setFixedSize(32, 32);
+    m_findNextBtn->setToolTip("Next match");
+    m_findNextBtn->setCursor(Qt::PointingHandCursor);
+
+    m_findCloseBtn = new QPushButton("✕");
+    m_findCloseBtn->setObjectName("findCloseButton");
+    m_findCloseBtn->setFixedSize(32, 32);
+    m_findCloseBtn->setToolTip("Close (Esc)");
+    m_findCloseBtn->setCursor(Qt::PointingHandCursor);
+
+    findLayout->addWidget(m_findEdit);
+    findLayout->addWidget(m_findLabel);
+    findLayout->addWidget(m_findPrevBtn);
+    findLayout->addWidget(m_findNextBtn);
+    findLayout->addStretch();
+    findLayout->addWidget(m_findCloseBtn);
+
+    connect(m_findEdit, &QLineEdit::textChanged, this, &MainWindow::onFindTextChanged);
+    connect(m_findEdit, &QLineEdit::returnPressed, this, &MainWindow::onFindNext);
+    connect(m_findNextBtn, &QPushButton::clicked, this, &MainWindow::onFindNext);
+    connect(m_findPrevBtn, &QPushButton::clicked, this, &MainWindow::onFindPrev);
+    connect(m_findCloseBtn, &QPushButton::clicked, this, &MainWindow::onFindClose);
+}
+
+void MainWindow::onFindInPage()
+{
+    m_findBar->setVisible(!m_findBar->isVisible());
+    if (m_findBar->isVisible()) {
+        m_findEdit->setFocus();
+        m_findEdit->selectAll();
+    } else {
+        // Clear highlights when closing
+        if (auto *view = currentWebView()) {
+            view->findText(QString());
+        }
+    }
+}
+
+void MainWindow::onFindNext()
+{
+    if (auto *view = currentWebView()) {
+        view->findText(m_findEdit->text());
+    }
+}
+
+void MainWindow::onFindPrev()
+{
+    if (auto *view = currentWebView()) {
+        view->findText(m_findEdit->text(), QWebEnginePage::FindBackward);
+    }
+}
+
+void MainWindow::onFindClose()
+{
+    m_findBar->hide();
+    if (auto *view = currentWebView()) {
+        view->findText(QString());  // Clear highlights
+    }
+}
+
+void MainWindow::onFindTextChanged(const QString &text)
+{
+    if (auto *view = currentWebView()) {
+        view->findText(text);
+    }
+}
+
+// === FEATURE 2: Zoom Controls ===
+
+void MainWindow::onZoomIn()
+{
+    if (auto *view = currentWebView()) {
+        qreal zoom = view->zoomFactor();
+        if (zoom < 5.0) {
+            view->setZoomFactor(zoom + 0.1);
+        }
+    }
+}
+
+void MainWindow::onZoomOut()
+{
+    if (auto *view = currentWebView()) {
+        qreal zoom = view->zoomFactor();
+        if (zoom > 0.25) {
+            view->setZoomFactor(zoom - 0.1);
+        }
+    }
+}
+
+void MainWindow::onZoomReset()
+{
+    if (auto *view = currentWebView()) {
+        view->setZoomFactor(1.0);
+    }
+}
+
+// === FEATURE 3: Loading Progress ===
+
+void MainWindow::onLoadStarted()
+{
+    QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
+    if (view && view == currentWebView()) {
+        m_progressBar->setValue(0);
+        m_progressBar->show();
+    }
+}
+
+void MainWindow::onLoadProgress(int progress)
+{
+    QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
+    if (view && view == currentWebView()) {
+        m_progressBar->setValue(progress);
+    }
+}
+
+void MainWindow::onLoadFinished(bool ok)
+{
+    Q_UNUSED(ok);
+    QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
+    if (view && view == currentWebView()) {
+        m_progressBar->hide();
+    }
+}
+
+// === FEATURE 4: Favicon ===
+
+void MainWindow::onIconChanged(const QIcon &icon)
+{
+    QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
+    if (view) {
+        int index = m_stackedWidget->indexOf(view);
+        if (index >= 0 && index < m_tabBar->count()) {
+            m_tabBar->setTabFavicon(index, icon);
+        }
+    }
+}
+
+// === FEATURE 5: Fullscreen ===
+
+void MainWindow::onToggleFullscreen()
+{
+    m_isFullscreen = !m_isFullscreen;
+
+    if (m_isFullscreen) {
+        m_titleBar->hide();
+        m_navBar->hide();
+        m_progressBar->hide();
+        m_findBar->hide();
+        showFullScreen();
+    } else {
+        m_titleBar->show();
+        m_navBar->show();
+        showMaximized();
+        m_maximizeButton->setText("❐");
+    }
+}
+
+void MainWindow::onFullScreenRequested(QWebEngineFullScreenRequest request)
+{
+    request.accept();
+
+    if (request.toggleOn()) {
+        if (!m_isFullscreen) {
+            m_isFullscreen = true;
+            m_titleBar->hide();
+            m_navBar->hide();
+            m_progressBar->hide();
+            m_findBar->hide();
+            showFullScreen();
+        }
+    } else {
+        if (m_isFullscreen) {
+            m_isFullscreen = false;
+            m_titleBar->show();
+            m_navBar->show();
+            showMaximized();
+            m_maximizeButton->setText("❐");
+        }
+    }
+}
+
+// === FEATURE 10: Download Manager ===
+
+void MainWindow::onDownloadRequested(QWebEngineDownloadRequest *download)
+{
+    // Accept the download to default location
+    download->accept();
+
+    QString fileName = download->downloadFileName();
+    m_downloadLabel->setText("Downloading: " + fileName);
+    m_downloadProgress->setValue(0);
+    m_downloadBar->show();
+
+    connect(download, &QWebEngineDownloadRequest::receivedBytesChanged, [this, download]() {
+        if (download->totalBytes() > 0) {
+            int percent = static_cast<int>((download->receivedBytes() * 100) / download->totalBytes());
+            m_downloadProgress->setValue(percent);
+        }
+    });
+
+    connect(download, &QWebEngineDownloadRequest::isFinishedChanged, [this, download]() {
+        if (download->isFinished()) {
+            QString dir = download->downloadDirectory();
+            m_downloadLabel->setText("Downloaded: " + download->downloadFileName());
+            m_downloadProgress->setValue(100);
+
+            // Auto-hide after 5 seconds
+            QTimer::singleShot(5000, m_downloadBar, &QWidget::hide);
+        }
+    });
+}
+
+// === FEATURE 11: Print ===
+
+void MainWindow::onPrint()
+{
+    if (auto *view = currentWebView()) {
+        QString defaultDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        if (defaultDir.isEmpty()) {
+            defaultDir = QDir::homePath();
+        }
+
+        QString filePath = QFileDialog::getSaveFileName(
+            this,
+            "Save Page as PDF",
+            QDir(defaultDir).filePath("Slate.pdf"),
+            "PDF Files (*.pdf)"
+        );
+
+        if (filePath.isEmpty()) {
+            return;
+        }
+        if (!filePath.endsWith(".pdf", Qt::CaseInsensitive)) {
+            filePath += ".pdf";
+        }
+
+        view->page()->printToPdf(filePath);
+    }
+}
+
+// === FEATURE 12: DevTools ===
+
+void MainWindow::onToggleDevTools()
+{
+    if (auto *view = currentWebView()) {
+        if (m_devToolsOpen && m_devToolsView) {
+            // Close devtools
+            m_devToolsView->page()->setInspectedPage(nullptr);
+            m_devToolsView->hide();
+            m_devToolsView->deleteLater();
+            m_devToolsView = nullptr;
+            m_devToolsOpen = false;
+        } else {
+            // Open devtools in a new window (lightweight approach)
+            m_devToolsView = new QWebEngineView();
+            m_devToolsView->setWindowTitle("Slate DevTools");
+            m_devToolsView->resize(900, 600);
+
+            QWebEnginePage *devPage = new QWebEnginePage(m_profile, m_devToolsView);
+            m_devToolsView->setPage(devPage);
+            devPage->setInspectedPage(view->page());
+
+            m_devToolsView->show();
+            m_devToolsOpen = true;
+
+            // Track window close
+            connect(m_devToolsView, &QWebEngineView::destroyed, [this]() {
+                m_devToolsView = nullptr;
+                m_devToolsOpen = false;
+            });
+        }
+    }
+}
+
+// === FEATURE 13: About Page ===
+
+void MainWindow::onAboutPage()
+{
+    if (auto *view = currentWebView()) {
+        QString aboutHtml = QString(R"(
+            <!DOCTYPE html><html><head><style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+                   display: flex; align-items: center; justify-content: center;
+                   height: 100vh; background-color: %1; color: %2; }
+            .container { text-align: center; max-width: 600px; padding: 40px; }
+            h1 { font-size: 36px; font-weight: 200; letter-spacing: 4px; margin-bottom: 8px; }
+            .version { font-size: 14px; color: %3; margin-bottom: 32px; }
+            .features { text-align: left; margin: 0 auto; max-width: 400px; }
+            .features h3 { font-size: 14px; font-weight: 600; color: %4;
+                           text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+            .features .item { font-size: 13px; color: %3; padding: 4px 0; display: flex;
+                              justify-content: space-between; }
+            .features .key { font-family: "SF Mono", Consolas, monospace; font-size: 12px;
+                             background: %5; padding: 2px 8px; border-radius: 4px; color: %4; }
+            </style></head><body>
+            <div class="container">
+                <h1>SLATE</h1>
+                <div class="version">v%6 — A clean slate for web browsing</div>
+                <div class="features">
+                    <h3>Keyboard Shortcuts</h3>
+                    <div class="item"><span>New Tab</span><span class="key">Ctrl+T</span></div>
+                    <div class="item"><span>Close Tab</span><span class="key">Ctrl+W</span></div>
+                    <div class="item"><span>Focus Address Bar</span><span class="key">Ctrl+L</span></div>
+                    <div class="item"><span>Reload</span><span class="key">Ctrl+R</span></div>
+                    <div class="item"><span>Find in Page</span><span class="key">Ctrl+F</span></div>
+                    <div class="item"><span>Zoom In / Out / Reset</span><span class="key">Ctrl+/- / 0</span></div>
+                    <div class="item"><span>Next / Prev Tab</span><span class="key">Ctrl+Tab</span></div>
+                    <div class="item"><span>Fullscreen</span><span class="key">F11</span></div>
+                    <div class="item"><span>Print</span><span class="key">Ctrl+P</span></div>
+                    <div class="item"><span>Developer Tools</span><span class="key">F12</span></div>
+                    <h3>Privacy</h3>
+                    <div class="item"><span>HTTPS-only mode</span><span class="key">Always on</span></div>
+                    <div class="item"><span>Ad & tracker blocking</span><span class="key">Always on</span></div>
+                    <div class="item"><span>No history saved</span><span class="key">By design</span></div>
+                    <div class="item"><span>No cookies persist</span><span class="key">By design</span></div>
+                </div>
+            </div></body></html>
+        )").arg(
+            m_isDarkMode ? "#1e1e1e" : "#ffffff",
+            m_isDarkMode ? "#e0e0e0" : "#303030",
+            m_isDarkMode ? "#909090" : "#606060",
+            m_isDarkMode ? "#c0c0c0" : "#404040",
+            m_isDarkMode ? "#2d2d2d" : "#f0f0f0",
+            QString(SLATE_VERSION)
+        );
+        view->setHtml(aboutHtml);
+        int index = m_stackedWidget->indexOf(view);
+        if (index >= 0) {
+            m_tabBar->setTabText(index, "About Slate");
+        }
+    }
+}
+
+// === FEATURE 9: Permission Toast ===
+
+void MainWindow::showPermissionToast(const QString &message)
+{
+    m_toastLabel->setText("  🛡  " + message);
+    m_toastLabel->setFixedWidth(m_stackedWidget->width());
+    m_toastLabel->move(0, 0);
+    m_toastLabel->show();
+    m_toastLabel->raise();
+
+    // Auto-dismiss after 3 seconds
+    QTimer::singleShot(3000, m_toastLabel, &QWidget::hide);
+}
+
 QString MainWindow::formatUrl(const QString &input)
 {
     QString url = input.trimmed();
@@ -1016,7 +1651,10 @@ QString MainWindow::formatUrl(const QString &input)
         return "https://duckduckgo.com/?q=" + QUrl::toPercentEncoding(url);
     }
 
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    // HTTPS-only: always upgrade http to https
+    if (url.startsWith("http://")) {
+        url = "https://" + url.mid(7);
+    } else if (!url.startsWith("https://")) {
         url = "https://" + url;
     }
 

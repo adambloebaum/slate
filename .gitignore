@@ -26,3 +26,7 @@ Thumbs.db
 
 # agent files
 AGENTS.md
+.claude/
+
+# Build commands
+docs/build.md

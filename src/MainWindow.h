@@ -17,14 +17,22 @@
 #include <QSystemTrayIcon>
 #include <QSet>
 #include <QStringList>
+#include <QMap>
+#include <QIcon>
+#include <QWebEngineFullScreenRequest>
 #include "AddressBar.h"
 #include "AdBlocker.h"
 
 class QWebEngineView;
 class QWebEngineProfile;
+class QWebEngineDownloadRequest;
 class ThemeToggle;
 class QCompleter;
 class QStringListModel;
+class QProgressBar;
+class QLabel;
+class QLineEdit;
+class QSplitter;
 
 class SlateTabBar : public QTabBar
 {
@@ -33,6 +41,8 @@ public:
     explicit SlateTabBar(QWidget *parent = nullptr);
     void setDarkMode(bool dark) { m_isDark = dark; update(); }
     void setAvailableWidth(int width) { m_availableWidth = width; updateGeometry(); update(); }
+    void setTabFavicon(int index, const QIcon &icon);
+    QIcon tabFavicon(int index) const;
 protected:
     QSize tabSizeHint(int index) const override;
     void tabInserted(int index) override;
@@ -46,6 +56,7 @@ private:
     bool m_isDark = false;
     int m_availableWidth = 800;
     int m_lastHoverIndex = -1;
+    QMap<int, QIcon> m_favicons;
     static constexpr int NORMAL_TAB_WIDTH = 200;
     static constexpr int MIN_TAB_WIDTH = 80;
     static constexpr int TABS_BEFORE_SHRINK = 5;
@@ -85,8 +96,48 @@ private slots:
     void onAddressFocusGained();
     void onAddressFocusLost();
 
+    // Feature 1: Find in page
+    void onFindInPage();
+    void onFindNext();
+    void onFindPrev();
+    void onFindClose();
+    void onFindTextChanged(const QString &text);
+
+    // Feature 2: Zoom
+    void onZoomIn();
+    void onZoomOut();
+    void onZoomReset();
+
+    // Feature 3: Loading progress
+    void onLoadStarted();
+    void onLoadProgress(int progress);
+    void onLoadFinished(bool ok);
+
+    // Feature 4: Favicon
+    void onIconChanged(const QIcon &icon);
+
+    // Feature 5: Fullscreen
+    void onToggleFullscreen();
+    void onFullScreenRequested(QWebEngineFullScreenRequest request);
+
+    // Feature 9: Permission toast
+    void showPermissionToast(const QString &message);
+
+    // Feature 10: Downloads
+    void onDownloadRequested(QWebEngineDownloadRequest *download);
+
+    // Feature 11: Print
+    void onPrint();
+
+    // Feature 12: DevTools
+    void onToggleDevTools();
+
+    // Feature 13: About page
+    void onAboutPage();
+
 private:
     void setupUI();
+    void setupFindBar();
     void setupShortcuts();
     void setupConnections();
     void setupTrayIcon();
@@ -128,9 +179,36 @@ private:
     QStackedWidget *m_stackedWidget = nullptr;
     QWidget *m_placeholderWidget = nullptr;
 
+    // Find bar (Feature 1)
+    QWidget *m_findBar = nullptr;
+    QLineEdit *m_findEdit = nullptr;
+    QPushButton *m_findCloseBtn = nullptr;
+    QPushButton *m_findNextBtn = nullptr;
+    QPushButton *m_findPrevBtn = nullptr;
+    QLabel *m_findLabel = nullptr;
+
+    // Loading indicator (Feature 3)
+    QProgressBar *m_progressBar = nullptr;
+
     // Theme toggle
     ThemeToggle *m_themeToggle = nullptr;
     bool m_isDarkMode = false;
+
+    // Fullscreen state (Feature 5)
+    bool m_isFullscreen = false;
+
+    // Permission toast (Feature 9)
+    QLabel *m_toastLabel = nullptr;
+
+    // Download bar (Feature 10)
+    QWidget *m_downloadBar = nullptr;
+    QLabel *m_downloadLabel = nullptr;
+    QProgressBar *m_downloadProgress = nullptr;
+    QPushButton *m_downloadCloseBtn = nullptr;
+
+    // DevTools (Feature 12)
+    QWebEngineView *m_devToolsView = nullptr;
+    bool m_devToolsOpen = false;
 
     // System tray
     QSystemTrayIcon *m_trayIcon = nullptr;
@@ -153,6 +231,15 @@ private:
     QShortcut *m_focusAddressShortcut = nullptr;
     QShortcut *m_nextTabShortcut = nullptr;
     QShortcut *m_prevTabShortcut = nullptr;
+    QShortcut *m_findShortcut = nullptr;
+    QShortcut *m_zoomInShortcut = nullptr;
+    QShortcut *m_zoomInShortcut2 = nullptr;  // Ctrl+= alternative
+    QShortcut *m_zoomOutShortcut = nullptr;
+    QShortcut *m_zoomResetShortcut = nullptr;
+    QShortcut *m_fullscreenShortcut = nullptr;
+    QShortcut *m_escapeFullscreenShortcut = nullptr;
+    QShortcut *m_printShortcut = nullptr;
+    QShortcut *m_devToolsShortcut = nullptr;
 
     // For window dragging
     bool m_dragging = false;

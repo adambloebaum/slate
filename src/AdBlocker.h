@@ -19,6 +19,10 @@ public:
     void interceptRequest(QWebEngineUrlRequestInfo &info) override;
 
     int blockedCount() const { return m_blockedCount; }
+    int domainCount() const { return m_blockedDomains.size(); }
+
+    // Load additional domains from a hosts-file format (one domain per line, or "0.0.0.0 domain")
+    int loadHostsFile(const QString &filePath);
 
 private:
     bool shouldBlock(const QUrl &url) const;

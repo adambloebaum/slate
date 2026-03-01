@@ -20,7 +20,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6 packages
-find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineQuick)
+find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebEngineQuick PrintSupport)
 
 # Define the executable
 set(SLATE_SOURCES
@@ -54,6 +54,7 @@ target_link_libraries(Slate PRIVATE
     Qt6::Widgets
     Qt6::WebEngineWidgets
     Qt6::WebEngineQuick
+    Qt6::PrintSupport
 )
 
 # On Windows, prevent console window from appearing alongside GUI

@@ -119,3 +119,98 @@ QMainWindow, #centralWidget {
 #contentArea {
     background-color: #ffffff;
 }
+
+/* Loading Progress Bar */
+#loadingBar {
+    background-color: transparent;
+    border: none;
+    max-height: 3px;
+}
+
+#loadingBar::chunk {
+    background-color: #1a73e8;
+    border-radius: 1px;
+}
+
+/* Find Bar */
+#findBar {
+    background-color: #f0f0f0;
+    border-top: 1px solid #e0e0e0;
+}
+
+#findEdit {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    color: #303030;
+    padding: 0px 10px;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+#findEdit:focus {
+    border-color: #1a73e8;
+}
+
+#findLabel {
+    color: #808080;
+    font-size: 12px;
+}
+
+#findButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #606060;
+    font-size: 12px;
+}
+
+#findButton:hover {
+    background-color: #e0e0e0;
+}
+
+#findCloseButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #909090;
+    font-size: 14px;
+}
+
+#findCloseButton:hover {
+    background-color: #e0e0e0;
+    color: #303030;
+}
+
+/* Download Bar */
+#downloadBar {
+    background-color: #f0f0f0;
+    border-top: 1px solid #e0e0e0;
+}
+
+#downloadLabel {
+    color: #303030;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+#downloadProgress {
+    background-color: #e0e0e0;
+    border: none;
+    border-radius: 3px;
+}
+
+#downloadProgress::chunk {
+    background-color: #1a73e8;
+    border-radius: 3px;
+}
+
+/* Permission Toast */
+#permissionToast {
+    background-color: #f0f0f0;
+    color: #303030;
+    border-bottom: 1px solid #e0e0e0;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+    padding: 0px 16px;
+}
