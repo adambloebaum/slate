@@ -15,8 +15,6 @@
 #include <QStackedWidget>
 #include <QPoint>
 #include <QSystemTrayIcon>
-#include <QSet>
-#include <QStringList>
 #include <QMap>
 #include <QIcon>
 #include <QWebEngineFullScreenRequest>
@@ -27,8 +25,6 @@ class QWebEngineView;
 class QWebEngineProfile;
 class QWebEngineDownloadRequest;
 class ThemeToggle;
-class QCompleter;
-class QStringListModel;
 class QProgressBar;
 class QLabel;
 class QLineEdit;
@@ -43,6 +39,7 @@ public:
     void setAvailableWidth(int width) { m_availableWidth = width; updateGeometry(); update(); }
     void setTabFavicon(int index, const QIcon &icon);
     QIcon tabFavicon(int index) const;
+    void reorderFavicons(int from, int to);
 protected:
     QSize tabSizeHint(int index) const override;
     void tabInserted(int index) override;
@@ -55,7 +52,6 @@ private:
     int calculateTabWidth() const;
     bool m_isDark = false;
     int m_availableWidth = 800;
-    int m_lastHoverIndex = -1;
     QMap<int, QIcon> m_favicons;
     static constexpr int NORMAL_TAB_WIDTH = 200;
     static constexpr int MIN_TAB_WIDTH = 80;
@@ -82,6 +78,7 @@ private slots:
     void onNewTab();
     void onCloseTab(int index);
     void onTabChanged(int index);
+    void onTabMoved(int from, int to);
     void onNavigate(const QString &url);
     void onUrlChanged(const QUrl &url);
     void onTitleChanged(const QString &title);
@@ -145,7 +142,6 @@ private:
     void loadStylesheet();
     void applyTheme(bool isDark);
     void updateNavigationButtons();
-    void addToHistory(const QUrl &url);
     QString formatUrl(const QString &input);
     QWebEngineView* currentWebView() const;
     QWebEngineView* webViewAt(int index) const;
@@ -217,12 +213,6 @@ private:
     AdBlocker *m_adBlocker = nullptr;
     QWebEngineProfile *m_profile = nullptr;
     bool m_webEngineInitialized = false;
-
-    // In-session history for address bar suggestions
-    QCompleter *m_urlCompleter = nullptr;
-    QStringListModel *m_urlModel = nullptr;
-    QStringList m_urlHistory;
-    QSet<QString> m_urlHistorySet;
 
     // Shortcuts
     QShortcut *m_newTabShortcut = nullptr;

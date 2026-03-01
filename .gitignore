@@ -4,6 +4,8 @@ cmake-build-*/
 
 # Release packages
 *.zip
+dist/
+installer/_build/
 
 # Qt Creator files
 *.pro.user

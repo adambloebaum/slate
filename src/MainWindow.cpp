@@ -22,9 +22,6 @@
 #include <QApplication>
 #include <QPropertyAnimation>
 #include <QTimer>
-#include <QToolTip>
-#include <QCompleter>
-#include <QStringListModel>
 #include <QLabel>
 #include <QProgressBar>
 #include <QLineEdit>
@@ -34,9 +31,11 @@
 #include <QDir>
 #include <QSplitter>
 #include <QDesktopServices>
+#include <QWebEngineScript>
+#include <QWebEngineScriptCollection>
 #include "Version.h"
 
-// Custom theme toggle switch
+// Custom theme toggle — refined pill with smooth slide and subtle depth
 class ThemeToggle : public QWidget
 {
     Q_OBJECT
@@ -44,11 +43,11 @@ class ThemeToggle : public QWidget
 public:
     explicit ThemeToggle(QWidget *parent = nullptr) : QWidget(parent), m_position(0), m_isDark(false)
     {
-        setFixedSize(44, 24);
+        setFixedSize(38, 20);
         setCursor(Qt::PointingHandCursor);
         m_animation = new QPropertyAnimation(this, "position", this);
-        m_animation->setDuration(150);
-        m_animation->setEasingCurve(QEasingCurve::InOutQuad);
+        m_animation->setDuration(200);
+        m_animation->setEasingCurve(QEasingCurve::InOutCubic);
     }
 
     bool isDark() const { return m_isDark; }
@@ -73,19 +72,26 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing);
 
-        // Track
-        QColor trackColor = m_isDark ? QColor("#4a4a4a") : QColor("#e0e0e0");
+        // Track — subtle tinted background
+        QColor trackColor = m_isDark ? QColor("#2e2e33") : QColor("#ddddd8");
         p.setBrush(trackColor);
         p.setPen(Qt::NoPen);
-        p.drawRoundedRect(rect(), height() / 2, height() / 2);
+        p.drawRoundedRect(QRectF(0.5, 0.5, width() - 1, height() - 1), height() / 2.0, height() / 2.0);
 
-        // Thumb - simple circle, no icon
-        int thumbSize = height() - 4;
-        int thumbX = 2 + m_position * (width() - thumbSize - 4);
-        QColor thumbColor = m_isDark ? QColor("#909090") : QColor("#ffffff");
+        // Thumb — crisp circle with subtle shadow effect via layering
+        int thumbDiameter = height() - 6;
+        qreal thumbX = 3 + m_position * (width() - thumbDiameter - 6);
+        qreal thumbY = 3;
+
+        // Shadow layer (subtle depth)
+        QColor shadowColor = m_isDark ? QColor(0, 0, 0, 50) : QColor(0, 0, 0, 25);
+        p.setBrush(shadowColor);
+        p.drawEllipse(QRectF(thumbX, thumbY + 0.5, thumbDiameter, thumbDiameter));
+
+        // Main thumb
+        QColor thumbColor = m_isDark ? QColor("#8a8a90") : QColor("#ffffff");
         p.setBrush(thumbColor);
-        p.setPen(Qt::NoPen);
-        p.drawEllipse(thumbX, 2, thumbSize, thumbSize);
+        p.drawEllipse(QRectF(thumbX, thumbY, thumbDiameter, thumbDiameter));
     }
 
     void mousePressEvent(QMouseEvent *) override {
@@ -101,43 +107,75 @@ private:
 // Include MOC for ThemeToggle
 #include "MainWindow.moc"
 
-// Single welcome page HTML with smooth theme transitions via CSS
+// Welcome page — refined entrance with staggered fade-in
 static const char* WELCOME_HTML = R"(
 <!DOCTYPE html>
 <html>
 <head>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            font-family: 'DM Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            transition: background-color 0.25s ease, color 0.25s ease;
+            overflow: hidden;
+            transition: background-color 0.35s ease, color 0.35s ease;
         }
-        body.light {
-            background-color: #ffffff;
+
+        body.light { background-color: #fafaf9; }
+        body.dark  { background-color: #161619; }
+
+        .welcome {
+            text-align: center;
+            animation: enterUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        body.dark {
-            background-color: #1e1e1e;
-        }
+
         .tagline {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 300;
-            letter-spacing: 0.5px;
-            transition: color 0.25s ease;
+            letter-spacing: 3px;
+            text-transform: lowercase;
+            transition: color 0.35s ease;
+            opacity: 0;
+            animation: fadeIn 0.8s ease 0.15s forwards;
         }
-        body.light .tagline {
-            color: #a0a0a0;
+
+        .accent {
+            display: block;
+            width: 24px;
+            height: 1px;
+            margin: 16px auto 0;
+            opacity: 0;
+            animation: fadeIn 0.8s ease 0.4s forwards;
+            transition: background-color 0.35s ease;
         }
-        body.dark .tagline {
-            color: #606060;
+
+        body.light .tagline { color: #b5b4b0; }
+        body.dark  .tagline { color: #4a4a50; }
+        body.light .accent  { background-color: #d0cfcb; }
+        body.dark  .accent  { background-color: #2e2e33; }
+
+        @keyframes enterUp {
+            from { transform: translateY(12px); }
+            to   { transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
         }
     </style>
 </head>
 <body class="light">
-    <div class="tagline">Your blank slate.</div>
+    <div class="welcome">
+        <div class="tagline">your blank slate</div>
+        <div class="accent"></div>
+    </div>
     <script>
         function setTheme(isDark) {
             document.body.className = isDark ? 'dark' : 'light';
@@ -181,7 +219,7 @@ QSize SlateTabBar::tabSizeHint(int index) const
 {
     Q_UNUSED(index);
     int width = calculateTabWidth();
-    return QSize(width, 46);
+    return QSize(width, 44);
 }
 
 void SlateTabBar::tabInserted(int index)
@@ -217,81 +255,94 @@ void SlateTabBar::paintEvent(QPaintEvent *event)
         bool isSelected = (i == currentIndex());
         bool isHovered = tabRectArea.contains(mapFromGlobal(QCursor::pos()));
 
-        // Draw tab background
+        // Tab background — clean pill shape with spacing
         painter.setPen(Qt::NoPen);
-        QRect bgRect = tabRectArea.adjusted(2, 3, -4, -3);  // Add horizontal spacing between tabs
+        QRect bgRect = tabRectArea.adjusted(3, 5, -3, -3);
 
         if (isSelected) {
-            painter.setBrush(m_isDark ? QColor("#3c3c3c") : QColor("#ffffff"));
-            painter.setPen(QPen(m_isDark ? QColor("#4a4a4a") : QColor("#e0e0e0"), 1));
-        } else if (isHovered) {
-            // Hover effect - same as selected but slightly different
-            painter.setBrush(m_isDark ? QColor("#353535") : QColor("#f8f8f8"));
-            painter.setPen(QPen(m_isDark ? QColor("#454545") : QColor("#e8e8e8"), 1));
-        } else {
-            painter.setBrush(Qt::NoBrush);
-        }
-        painter.drawRoundedRect(bgRect, 8, 8);
+            // Active tab: subtle filled background
+            painter.setBrush(m_isDark ? QColor(255, 255, 255, 12) : QColor(0, 0, 0, 8));
+            painter.drawRoundedRect(bgRect, 7, 7);
 
-        // Calculate vertical center for consistent alignment
+            // Bottom accent line — the key differentiator
+            QRect accentRect(bgRect.left() + bgRect.width() / 2 - 8, bgRect.bottom() - 1, 16, 2);
+            painter.setBrush(m_isDark ? QColor("#5ba3d9") : QColor("#5ba3d9"));
+            painter.drawRoundedRect(accentRect, 1, 1);
+        } else if (isHovered) {
+            painter.setBrush(m_isDark ? QColor(255, 255, 255, 6) : QColor(0, 0, 0, 4));
+            painter.drawRoundedRect(bgRect, 7, 7);
+        }
+
+        // Vertical center for alignment
         int centerY = bgRect.center().y();
 
-        // Draw close button first to get its rect
+        // Close button rect
         int closeSize = 14;
-        int closeX = bgRect.right() - closeSize - 10;
+        int closeX = bgRect.right() - closeSize - 8;
         int closeY = centerY - closeSize / 2;
         QRect closeRect(closeX, closeY, closeSize, closeSize);
 
-        // Draw favicon if present
-        int textLeftOffset = 14;
+        // Favicon
+        int textLeftOffset = 12;
         QIcon favicon = m_favicons.value(i, QIcon());
         if (!favicon.isNull()) {
-            int iconSize = 16;
+            int iconSize = 14;
             int iconX = bgRect.left() + 10;
             int iconY = centerY - iconSize / 2;
             favicon.paint(&painter, iconX, iconY, iconSize, iconSize);
-            textLeftOffset = 32;  // Push text right to make room for icon
+            textLeftOffset = 30;
         }
 
-        // Draw text - LEFT ALIGNED, vertically centered
-        QRect textRect(bgRect.left() + textLeftOffset, bgRect.top(), closeRect.left() - bgRect.left() - textLeftOffset - 6, bgRect.height());
+        // Tab text — refined typography
+        QRect textRect(bgRect.left() + textLeftOffset, bgRect.top(),
+                       closeRect.left() - bgRect.left() - textLeftOffset - 4, bgRect.height());
+
         QColor textColor;
         if (m_isDark) {
-            textColor = isSelected ? QColor("#e0e0e0") : QColor("#909090");
+            textColor = isSelected ? QColor("#c8c8cd") : QColor("#67676d");
         } else {
-            textColor = isSelected ? QColor("#1a1a1a") : QColor("#808080");
+            textColor = isSelected ? QColor("#2c2c28") : QColor("#999894");
         }
+
+        QFont tabFont = font();
+        tabFont.setWeight(isSelected ? QFont::Medium : QFont::Normal);
+        painter.setFont(tabFont);
         painter.setPen(textColor);
-        painter.setFont(font());
         QString elidedText = painter.fontMetrics().elidedText(tabText(i), Qt::ElideRight, textRect.width());
         painter.drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, elidedText);
 
-        // Check if mouse is over close button
+        // Close button — only visible on hover or selected
         QPoint mousePos = mapFromGlobal(QCursor::pos());
         bool closeHovered = closeRect.contains(mousePos);
+        bool showClose = isSelected || isHovered;
 
-        if (closeHovered) {
-            painter.setBrush(m_isDark ? QColor("#505050") : QColor("#d4d4d4"));
-            painter.setPen(Qt::NoPen);
-            painter.drawRoundedRect(closeRect.adjusted(-2, -2, 2, 2), 4, 4);
+        if (showClose) {
+            if (closeHovered) {
+                painter.setBrush(m_isDark ? QColor(255, 255, 255, 15) : QColor(0, 0, 0, 8));
+                painter.setPen(Qt::NoPen);
+                painter.drawRoundedRect(closeRect.adjusted(-2, -2, 2, 2), 4, 4);
+            }
+
+            // X mark — thin, elegant lines
+            QColor xColor = closeHovered
+                ? (m_isDark ? QColor("#b0b0b5") : QColor("#555550"))
+                : (m_isDark ? QColor("#5a5a60") : QColor("#b5b4b0"));
+            painter.setPen(QPen(xColor, 1.2, Qt::SolidLine, Qt::RoundCap));
+            int m = 4;
+            painter.drawLine(closeRect.left() + m, closeRect.top() + m,
+                             closeRect.right() - m, closeRect.bottom() - m);
+            painter.drawLine(closeRect.right() - m, closeRect.top() + m,
+                             closeRect.left() + m, closeRect.bottom() - m);
         }
-
-        // Draw X
-        painter.setPen(QPen(m_isDark ? QColor("#909090") : QColor("#808080"), 1.5, Qt::SolidLine, Qt::RoundCap));
-        int margin = 3;
-        painter.drawLine(closeRect.left() + margin, closeRect.top() + margin,
-                         closeRect.right() - margin, closeRect.bottom() - margin);
-        painter.drawLine(closeRect.right() - margin, closeRect.top() + margin,
-                         closeRect.left() + margin, closeRect.bottom() - margin);
     }
 }
 
 QRect SlateTabBar::closeButtonRect(int index) const
 {
     QRect tabRectArea = tabRect(index);
-    QRect bgRect = tabRectArea.adjusted(2, 3, -4, -3);
+    QRect bgRect = tabRectArea.adjusted(3, 5, -3, -3);
     int closeSize = 14;
-    int closeX = bgRect.right() - closeSize - 10;
+    int closeX = bgRect.right() - closeSize - 8;
     int closeY = bgRect.center().y() - closeSize / 2;
     return QRect(closeX, closeY, closeSize, closeSize);
 }
@@ -327,17 +378,35 @@ QIcon SlateTabBar::tabFavicon(int index) const
     return m_favicons.value(index, QIcon());
 }
 
-void SlateTabBar::mouseMoveEvent(QMouseEvent *event)
+void SlateTabBar::reorderFavicons(int from, int to)
 {
-    int index = tabAt(event->pos());
-    if (index != m_lastHoverIndex) {
-        m_lastHoverIndex = index;
-        if (index >= 0) {
-            QToolTip::showText(mapToGlobal(event->pos()), tabText(index), this);
+    QIcon movedIcon = m_favicons.take(from);
+
+    // Shift indices between from and to
+    QMap<int, QIcon> updated;
+    for (auto it = m_favicons.begin(); it != m_favicons.end(); ++it) {
+        int idx = it.key();
+        if (from < to) {
+            // Moved right: indices (from, to] shift left by 1
+            if (idx > from && idx <= to)
+                updated[idx - 1] = it.value();
+            else
+                updated[idx] = it.value();
         } else {
-            QToolTip::hideText();
+            // Moved left: indices [to, from) shift right by 1
+            if (idx >= to && idx < from)
+                updated[idx + 1] = it.value();
+            else
+                updated[idx] = it.value();
         }
     }
+    updated[to] = movedIcon;
+    m_favicons = updated;
+    update();
+}
+
+void SlateTabBar::mouseMoveEvent(QMouseEvent *event)
+{
     update();  // Repaint for hover effects
     QTabBar::mouseMoveEvent(event);
 }
@@ -399,11 +468,11 @@ void MainWindow::setupUI()
     // === TITLE BAR (tabs + window controls) ===
     m_titleBar = new QWidget();
     m_titleBar->setObjectName("titleBar");
-    m_titleBar->setFixedHeight(52);
+    m_titleBar->setFixedHeight(48);
 
     m_titleBarLayout = new QHBoxLayout(m_titleBar);
-    m_titleBarLayout->setContentsMargins(12, 0, 0, 0);
-    m_titleBarLayout->setSpacing(4);
+    m_titleBarLayout->setContentsMargins(8, 0, 0, 0);
+    m_titleBarLayout->setSpacing(2);
 
     // Tab bar
     m_tabBar = new SlateTabBar();
@@ -411,7 +480,7 @@ void MainWindow::setupUI()
     // New tab button
     m_newTabButton = new QPushButton("+");
     m_newTabButton->setObjectName("newTabButton");
-    m_newTabButton->setFixedSize(28, 28);
+    m_newTabButton->setFixedSize(26, 26);
     m_newTabButton->setToolTip("New Tab (Ctrl+T)");
     m_newTabButton->setCursor(Qt::PointingHandCursor);
 
@@ -419,22 +488,22 @@ void MainWindow::setupUI()
     QWidget *spacer = new QWidget();
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    // Window controls - Windows 11 style
+    // Window controls — compact, refined
     m_minimizeButton = new QPushButton("─");
     m_minimizeButton->setObjectName("windowButton");
-    m_minimizeButton->setFixedSize(46, 52);
+    m_minimizeButton->setFixedSize(46, 48);
     m_minimizeButton->setToolTip("Minimize");
     m_minimizeButton->setCursor(Qt::PointingHandCursor);
 
     m_maximizeButton = new QPushButton("□");
     m_maximizeButton->setObjectName("windowButton");
-    m_maximizeButton->setFixedSize(46, 52);
+    m_maximizeButton->setFixedSize(46, 48);
     m_maximizeButton->setToolTip("Maximize");
     m_maximizeButton->setCursor(Qt::PointingHandCursor);
 
     m_closeButton = new QPushButton("✕");
     m_closeButton->setObjectName("closeButton");
-    m_closeButton->setFixedSize(46, 52);
+    m_closeButton->setFixedSize(46, 48);
     m_closeButton->setToolTip("Close");
     m_closeButton->setCursor(Qt::PointingHandCursor);
 
@@ -448,17 +517,17 @@ void MainWindow::setupUI()
     // === NAVIGATION BAR ===
     m_navBar = new QWidget();
     m_navBar->setObjectName("navBar");
-    m_navBar->setFixedHeight(54);
+    m_navBar->setFixedHeight(46);
 
     m_navLayout = new QHBoxLayout(m_navBar);
-    m_navLayout->setContentsMargins(12, 6, 12, 8);
-    m_navLayout->setSpacing(6);
+    m_navLayout->setContentsMargins(12, 4, 12, 8);
+    m_navLayout->setSpacing(4);
 
-    // Back button - simple < > arrows
+    // Back button
     m_backButton = new QPushButton();
     m_backButton->setObjectName("navButton");
     m_backButton->setText("<");
-    m_backButton->setFixedSize(40, 40);
+    m_backButton->setFixedSize(34, 34);
     m_backButton->setEnabled(false);
     m_backButton->setToolTip("Back");
     m_backButton->setCursor(Qt::PointingHandCursor);
@@ -467,7 +536,7 @@ void MainWindow::setupUI()
     m_forwardButton = new QPushButton();
     m_forwardButton->setObjectName("navButton");
     m_forwardButton->setText(">");
-    m_forwardButton->setFixedSize(40, 40);
+    m_forwardButton->setFixedSize(34, 34);
     m_forwardButton->setEnabled(false);
     m_forwardButton->setToolTip("Forward");
     m_forwardButton->setCursor(Qt::PointingHandCursor);
@@ -476,18 +545,12 @@ void MainWindow::setupUI()
     m_reloadButton = new QPushButton();
     m_reloadButton->setObjectName("navButton");
     m_reloadButton->setText("↻");
-    m_reloadButton->setFixedSize(40, 40);
+    m_reloadButton->setFixedSize(34, 34);
     m_reloadButton->setToolTip("Reload (Ctrl+R)");
     m_reloadButton->setCursor(Qt::PointingHandCursor);
 
     // Address bar
     m_addressBar = new AddressBar();
-    m_urlModel = new QStringListModel(this);
-    m_urlCompleter = new QCompleter(m_urlModel, this);
-    m_urlCompleter->setCaseSensitivity(Qt::CaseInsensitive);
-    m_urlCompleter->setFilterMode(Qt::MatchContains);
-    m_urlCompleter->setCompletionMode(QCompleter::PopupCompletion);
-    m_addressBar->setCompleter(m_urlCompleter);
 
     // Theme toggle
     m_themeToggle = new ThemeToggle();
@@ -495,15 +558,15 @@ void MainWindow::setupUI()
     m_navLayout->addWidget(m_backButton);
     m_navLayout->addWidget(m_forwardButton);
     m_navLayout->addWidget(m_reloadButton);
-    m_navLayout->addSpacing(10);
+    m_navLayout->addSpacing(8);
     m_navLayout->addWidget(m_addressBar, 1);
-    m_navLayout->addSpacing(10);
+    m_navLayout->addSpacing(8);
     m_navLayout->addWidget(m_themeToggle);
 
     // === PROGRESS BAR (Feature 3) ===
     m_progressBar = new QProgressBar();
     m_progressBar->setObjectName("loadingBar");
-    m_progressBar->setFixedHeight(3);
+    m_progressBar->setFixedHeight(2);
     m_progressBar->setTextVisible(false);
     m_progressBar->setRange(0, 100);
     m_progressBar->setValue(0);
@@ -526,7 +589,7 @@ void MainWindow::setupUI()
     // === PERMISSION TOAST (Feature 9) ===
     m_toastLabel = new QLabel(m_stackedWidget);
     m_toastLabel->setObjectName("permissionToast");
-    m_toastLabel->setFixedHeight(36);
+    m_toastLabel->setFixedHeight(32);
     m_toastLabel->setAlignment(Qt::AlignCenter);
     m_toastLabel->hide();
 
@@ -536,7 +599,7 @@ void MainWindow::setupUI()
     // === DOWNLOAD BAR (Feature 10) ===
     m_downloadBar = new QWidget();
     m_downloadBar->setObjectName("downloadBar");
-    m_downloadBar->setFixedHeight(44);
+    m_downloadBar->setFixedHeight(40);
     m_downloadBar->hide();
 
     QHBoxLayout *dlLayout = new QHBoxLayout(m_downloadBar);
@@ -548,14 +611,14 @@ void MainWindow::setupUI()
 
     m_downloadProgress = new QProgressBar();
     m_downloadProgress->setObjectName("downloadProgress");
-    m_downloadProgress->setFixedWidth(200);
-    m_downloadProgress->setFixedHeight(6);
+    m_downloadProgress->setFixedWidth(180);
+    m_downloadProgress->setFixedHeight(4);
     m_downloadProgress->setTextVisible(false);
     m_downloadProgress->setRange(0, 100);
 
     m_downloadCloseBtn = new QPushButton("✕");
     m_downloadCloseBtn->setObjectName("findCloseButton");
-    m_downloadCloseBtn->setFixedSize(32, 32);
+    m_downloadCloseBtn->setFixedSize(28, 28);
     m_downloadCloseBtn->setCursor(Qt::PointingHandCursor);
     connect(m_downloadCloseBtn, &QPushButton::clicked, m_downloadBar, &QWidget::hide);
 
@@ -623,6 +686,7 @@ void MainWindow::setupConnections()
     // Tab bar
     connect(m_tabBar, &QTabBar::currentChanged, this, &MainWindow::onTabChanged);
     connect(m_tabBar, &QTabBar::tabCloseRequested, this, &MainWindow::onCloseTab);
+    connect(m_tabBar, &QTabBar::tabMoved, this, &MainWindow::onTabMoved);
 
     // Theme toggle
     connect(m_themeToggle, &ThemeToggle::toggled, this, &MainWindow::onThemeToggled);
@@ -674,6 +738,43 @@ void MainWindow::setupConnections()
     connect(m_devToolsShortcut, &QShortcut::activated, this, &MainWindow::onToggleDevTools);
 }
 
+// Generate JavaScript that injects scrollbar CSS into the page.
+// Uses solid mid-tone colors so the thumb is visible on any page background.
+static QString scrollbarInjectionScript(bool isDark)
+{
+    // Solid grays that contrast against both light and dark page backgrounds
+    QString thumbColor = isDark ? "#5a5a62" : "#c2c1bd";
+    QString thumbHover = isDark ? "#75757d" : "#a5a4a0";
+    QString trackColor = isDark ? "#26262b" : "#f2f2f0";
+
+    return QString(R"(
+        (function() {
+            var id = '__slate_scrollbar';
+            var el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('style');
+                el.id = id;
+                (document.head || document.documentElement).appendChild(el);
+            }
+            el.textContent = '\
+                ::-webkit-scrollbar { width: 14px !important; height: 14px !important; } \
+                ::-webkit-scrollbar-track { background: %3 !important; } \
+                ::-webkit-scrollbar-thumb { \
+                    background: %1 !important; \
+                    border-radius: 7px !important; \
+                    border: 3px solid %3 !important; \
+                    background-clip: content-box !important; \
+                } \
+                ::-webkit-scrollbar-thumb:hover { \
+                    background: %2 !important; \
+                    background-clip: content-box !important; \
+                } \
+                ::-webkit-scrollbar-corner { background: %3 !important; } \
+            ';
+        })();
+    )").arg(thumbColor, thumbHover, trackColor);
+}
+
 void MainWindow::initializeWebEngine()
 {
     if (m_webEngineInitialized) {
@@ -686,6 +787,15 @@ void MainWindow::initializeWebEngine()
     m_profile->setHttpCacheType(QWebEngineProfile::MemoryHttpCache);
     m_profile->setPersistentCookiesPolicy(QWebEngineProfile::NoPersistentCookies);
     m_profile->setPersistentPermissionsPolicy(QWebEngineProfile::PersistentPermissionsPolicy::AskEveryTime);
+
+    // Inject scrollbar styling into every page
+    QWebEngineScript scrollbarScript;
+    scrollbarScript.setName("slate-scrollbar");
+    scrollbarScript.setSourceCode(scrollbarInjectionScript(m_isDarkMode));
+    scrollbarScript.setInjectionPoint(QWebEngineScript::DocumentReady);
+    scrollbarScript.setWorldId(QWebEngineScript::MainWorld);
+    scrollbarScript.setRunsOnSubFrames(true);
+    m_profile->scripts()->insert(scrollbarScript);
 
     // Set up ad blocker
     m_adBlocker = new AdBlocker(this);
@@ -729,10 +839,10 @@ void MainWindow::setupTrayIcon()
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(QPen(QColor("#1a1a1a"), 2));
+    painter.setPen(QPen(QColor("#161619"), 2));
     painter.setBrush(Qt::NoBrush);
     painter.drawEllipse(4, 4, 24, 24);
-    painter.setFont(QFont("Segoe UI", 14, QFont::Medium));
+    painter.setFont(QFont("Segoe UI Variable", 14, QFont::Medium));
     painter.drawText(pixmap.rect(), Qt::AlignCenter, "S");
     painter.end();
 
@@ -784,134 +894,193 @@ void MainWindow::applyTheme(bool isDark)
     QString style;
     if (isDark) {
         style = R"(
-            QMainWindow, #centralWidget { background-color: #1e1e1e; }
-            #titleBar { background-color: #2d2d2d; }
-            #navBar { background-color: #1e1e1e; }
-            #addressBar {
-                background-color: #3c3c3c;
-                border: none;
-                border-radius: 18px;
-                color: #e0e0e0;
-                padding: 0px 16px;
-                min-height: 36px;
-                font-family: "SF Mono", "Consolas", "Monaco", monospace;
-                font-size: 14px;
-                selection-background-color: #264f78;
-            }
-            #addressBar:focus {
-                background-color: #2d2d2d;
-                border: 1px solid #4a4a4a;
-            }
-            #addressBar::placeholder { color: #808080; }
-            #navButton {
-                background-color: transparent;
-                border: none;
-                color: #b0b0b0;
-                font-family: "Segoe UI", Arial, sans-serif;
-                font-size: 22px;
-                font-weight: 600;
-                border-radius: 50%;
-            }
-            #navButton:hover { background-color: rgba(255, 255, 255, 0.1); }
-            #navButton:pressed { background-color: rgba(255, 255, 255, 0.15); }
-            #navButton:disabled { color: #505050; }
-            #windowButton {
-                background-color: transparent;
-                border: none;
-                color: #b0b0b0;
-                font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-                font-size: 16px;
-            }
-            #windowButton:hover { background-color: #404040; }
-            #closeButton {
-                background-color: transparent;
-                border: none;
-                color: #b0b0b0;
-                font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
-                font-size: 16px;
-            }
-            #closeButton:hover { background-color: #e81123; color: #ffffff; }
-            #newTabButton {
-                background-color: transparent;
-                border: none;
-                color: #808080;
-                font-size: 18px;
-                font-weight: 300;
-                border-radius: 6px;
-            }
-            #newTabButton:hover { background-color: #404040; color: #b0b0b0; }
-            #contentArea { background-color: #1e1e1e; }
+            /* === Foundation === */
+            QMainWindow, #centralWidget { background-color: #161619; }
+
+            /* === Title Bar === */
+            #titleBar { background-color: #1e1e22; }
+
+            /* === Tab Bar === */
             #slateTabBar {
                 background-color: transparent;
                 border: none;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-                font-size: 13px;
+                qproperty-drawBase: 0;
+                font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+                font-size: 12px;
+                font-weight: 400;
             }
+
+            /* === New Tab Button === */
+            #newTabButton {
+                background-color: transparent;
+                border: none;
+                color: #5a5a60;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 17px;
+                font-weight: 300;
+                border-radius: 8px;
+            }
+            #newTabButton:hover {
+                background-color: rgba(255, 255, 255, 0.06);
+                color: #8a8a90;
+            }
+
+            /* === Window Controls === */
+            #windowButton {
+                background-color: transparent;
+                border: none;
+                color: #67676d;
+                font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+                font-size: 13px;
+                font-weight: 400;
+            }
+            #windowButton:hover {
+                background-color: rgba(255, 255, 255, 0.08);
+                color: #a0a0a5;
+            }
+            #closeButton {
+                background-color: transparent;
+                border: none;
+                color: #67676d;
+                font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+                font-size: 13px;
+                font-weight: 400;
+            }
+            #closeButton:hover {
+                background-color: #e81123;
+                color: #ffffff;
+            }
+
+            /* === Navigation Bar === */
+            #navBar { background-color: #161619; }
+
+            /* === Navigation Buttons === */
+            #navButton {
+                background-color: transparent;
+                border: none;
+                color: #8a8a90;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 16px;
+                font-weight: 400;
+                border-radius: 8px;
+            }
+            #navButton:hover {
+                background-color: rgba(255, 255, 255, 0.06);
+                color: #c8c8cd;
+            }
+            #navButton:pressed {
+                background-color: rgba(255, 255, 255, 0.10);
+            }
+            #navButton:disabled { color: #36363b; }
+
+            /* === Address Bar === */
+            #addressBar {
+                background-color: #26262b;
+                border: 1px solid transparent;
+                border-radius: 10px;
+                color: #e8e8ed;
+                padding: 0px 14px;
+                min-height: 34px;
+                font-family: "Cascadia Code", "SF Mono", "Consolas", monospace;
+                font-size: 13px;
+                selection-background-color: #264f78;
+            }
+            #addressBar:focus {
+                background-color: #1e1e22;
+                border: 1px solid #3a3a40;
+            }
+            #addressBar::placeholder { color: #5a5a60; }
+
+            /* === Content Area === */
+            #contentArea { background-color: #161619; }
+
+            /* === Loading Bar === */
             #loadingBar {
                 background-color: transparent;
                 border: none;
-                max-height: 3px;
+                max-height: 2px;
             }
-            #loadingBar::chunk {
-                background-color: #4a9eff;
-                border-radius: 1px;
-            }
+            #loadingBar::chunk { background-color: #5ba3d9; }
+
+            /* === Find Bar === */
             #findBar {
-                background-color: #2d2d2d;
-                border-top: 1px solid #3c3c3c;
+                background-color: #1e1e22;
+                border-top: 1px solid #2e2e33;
             }
             #findEdit {
-                background-color: #3c3c3c;
-                border: 1px solid #4a4a4a;
-                border-radius: 6px;
-                color: #e0e0e0;
-                padding: 0px 10px;
-                font-family: "Segoe UI", sans-serif;
+                background-color: #26262b;
+                border: 1px solid #36363b;
+                border-radius: 8px;
+                color: #e8e8ed;
+                padding: 0px 12px;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
                 font-size: 13px;
             }
-            #findEdit:focus { border-color: #4a9eff; }
-            #findLabel { color: #909090; font-size: 12px; }
+            #findEdit:focus { border-color: #5ba3d9; }
+            #findLabel {
+                color: #5a5a60;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 12px;
+            }
             #findButton {
                 background-color: transparent;
                 border: none;
                 border-radius: 6px;
-                color: #b0b0b0;
-                font-size: 12px;
+                color: #8a8a90;
+                font-size: 11px;
             }
-            #findButton:hover { background-color: #404040; }
+            #findButton:hover { background-color: rgba(255, 255, 255, 0.06); }
             #findCloseButton {
                 background-color: transparent;
                 border: none;
                 border-radius: 6px;
-                color: #909090;
-                font-size: 14px;
+                color: #5a5a60;
+                font-size: 12px;
             }
-            #findCloseButton:hover { background-color: #404040; color: #e0e0e0; }
-            #permissionToast {
-                background-color: #2d2d2d;
-                color: #e0e0e0;
-                border-bottom: 1px solid #3c3c3c;
-                font-family: "Segoe UI", sans-serif;
-                font-size: 13px;
-                padding: 0px 16px;
+            #findCloseButton:hover {
+                background-color: rgba(255, 255, 255, 0.06);
+                color: #c8c8cd;
             }
+
+            /* === Download Bar === */
             #downloadBar {
-                background-color: #2d2d2d;
-                border-top: 1px solid #3c3c3c;
+                background-color: #1e1e22;
+                border-top: 1px solid #2e2e33;
             }
             #downloadLabel {
-                color: #e0e0e0;
-                font-family: "Segoe UI", sans-serif;
-                font-size: 13px;
+                color: #e8e8ed;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 12px;
             }
             #downloadProgress {
-                background-color: #3c3c3c;
+                background-color: #2e2e33;
                 border: none;
-                border-radius: 3px;
+                border-radius: 2px;
             }
             #downloadProgress::chunk {
-                background-color: #4a9eff;
-                border-radius: 3px;
+                background-color: #5ba3d9;
+                border-radius: 2px;
+            }
+
+            /* === Permission Toast === */
+            #permissionToast {
+                background-color: #1e1e22;
+                color: #e8e8ed;
+                border-bottom: 1px solid #2e2e33;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 12px;
+                padding: 0px 16px;
+            }
+
+            /* === Tooltip === */
+            QToolTip {
+                background-color: #e8e8ed;
+                color: #161619;
+                border: none;
+                padding: 4px 8px;
+                font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+                font-size: 12px;
+                border-radius: 6px;
             }
         )";
     } else {
@@ -927,12 +1096,29 @@ void MainWindow::applyTheme(bool isDark)
     // Update tab bar theme
     m_tabBar->setDarkMode(isDark);
 
-    // Update welcome pages in existing tabs via JavaScript (smooth transition)
+    // Update scrollbar script in profile (for future pages)
+    if (m_profile) {
+        for (const QWebEngineScript &s : m_profile->scripts()->find("slate-scrollbar"))
+            m_profile->scripts()->remove(s);
+        QWebEngineScript scrollbarScript;
+        scrollbarScript.setName("slate-scrollbar");
+        scrollbarScript.setSourceCode(scrollbarInjectionScript(isDark));
+        scrollbarScript.setInjectionPoint(QWebEngineScript::DocumentReady);
+        scrollbarScript.setWorldId(QWebEngineScript::MainWorld);
+        scrollbarScript.setRunsOnSubFrames(true);
+        m_profile->scripts()->insert(scrollbarScript);
+    }
+
+    // Update existing tabs via JavaScript
+    QString scrollbarJs = scrollbarInjectionScript(isDark);
     for (int i = 0; i < m_stackedWidget->count(); ++i) {
         QWebEngineView *view = qobject_cast<QWebEngineView*>(m_stackedWidget->widget(i));
         if (view) {
+            // Update scrollbar in all tabs
+            view->page()->runJavaScript(scrollbarJs);
+
+            // Update welcome page theme
             QString url = view->url().toString();
-            // Check if it's a welcome page (about:blank or empty)
             if (url.isEmpty() || url == "about:blank" || url.startsWith("data:")) {
                 view->page()->runJavaScript(QString("setTheme(%1)").arg(isDark ? "true" : "false"));
             }
@@ -1041,30 +1227,65 @@ void MainWindow::onNewTab()
     connect(page, &QWebEnginePage::certificateError, [this, view](QWebEngineCertificateError error) {
         error.rejectCertificate();
         QString errorHtml = QString(R"(
-            <!DOCTYPE html><html><head><style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, "Segoe UI", sans-serif; display: flex;
-                   align-items: center; justify-content: center; height: 100vh;
-                   background-color: %1; color: %2; }
-            .container { text-align: center; max-width: 500px; padding: 40px; }
-            .icon { font-size: 64px; margin-bottom: 20px; }
-            h1 { font-size: 22px; font-weight: 600; margin-bottom: 12px; }
-            p { font-size: 14px; color: %3; line-height: 1.6; }
-            .url { font-family: monospace; font-size: 13px; color: %4;
-                   background: %5; padding: 4px 8px; border-radius: 4px; margin-top: 16px; display: inline-block; }
+            <!DOCTYPE html><html><head>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+            <style>
+            *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+                font-family: 'DM Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
+                display: flex; align-items: center; justify-content: center;
+                height: 100vh; overflow: hidden;
+                background-color: %1; color: %2;
+            }
+            .container {
+                text-align: center; max-width: 440px; padding: 40px;
+                animation: enterUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+            .shield {
+                width: 48px; height: 48px; margin: 0 auto 24px;
+                border: 2px solid %5; border-radius: 12px;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 22px; color: %5;
+                opacity: 0; animation: fadeIn 0.8s ease 0.1s forwards;
+            }
+            h1 {
+                font-size: 18px; font-weight: 500; letter-spacing: 0.5px;
+                margin-bottom: 12px;
+                opacity: 0; animation: fadeIn 0.8s ease 0.2s forwards;
+            }
+            p {
+                font-size: 13px; color: %3; line-height: 1.7;
+                opacity: 0; animation: fadeIn 0.8s ease 0.3s forwards;
+            }
+            .url {
+                font-family: 'Cascadia Code', 'SF Mono', Consolas, monospace;
+                font-size: 12px; color: %5;
+                background: %4; padding: 6px 14px; border-radius: 8px;
+                margin-top: 20px; display: inline-block; letter-spacing: 0.3px;
+                opacity: 0; animation: fadeIn 0.8s ease 0.4s forwards;
+            }
+            @keyframes enterUp {
+                from { transform: translateY(12px); }
+                to   { transform: translateY(0); }
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+            }
             </style></head><body>
             <div class="container">
-                <div class="icon">⚠</div>
-                <h1>Connection Not Secure</h1>
+                <div class="shield">⚠</div>
+                <h1>Connection not secure</h1>
                 <p>Slate blocked this connection because the site's certificate is not trusted. This protects your data from being intercepted.</p>
                 <div class="url">%6</div>
             </div></body></html>
         )").arg(
-            m_isDarkMode ? "#1e1e1e" : "#ffffff",
-            m_isDarkMode ? "#e0e0e0" : "#303030",
-            m_isDarkMode ? "#909090" : "#606060",
-            m_isDarkMode ? "#e0a030" : "#b07020",
-            m_isDarkMode ? "#2d2d2d" : "#f5f5f5",
+            m_isDarkMode ? "#161619" : "#fafaf9",   // bg
+            m_isDarkMode ? "#c8c8cd" : "#2c2c28",   // text
+            m_isDarkMode ? "#5a5a60" : "#999894",    // muted text
+            m_isDarkMode ? "#26262b" : "#ededeb",    // url bg
+            m_isDarkMode ? "#d4976a" : "#c47a4a",    // warning accent
             error.url().host().toHtmlEscaped()
         );
         view->setHtml(errorHtml, error.url());
@@ -1093,7 +1314,7 @@ void MainWindow::onNewTab()
     m_stackedWidget->setCurrentIndex(stackIndex);
 
     // Set background color to match theme BEFORE loading (prevents white flash)
-    view->page()->setBackgroundColor(m_isDarkMode ? QColor("#1e1e1e") : QColor("#ffffff"));
+    view->page()->setBackgroundColor(m_isDarkMode ? QColor("#161619") : QColor("#fafaf9"));
 
     // Load welcome page with correct initial theme
     QString html = QString(WELCOME_HTML).replace("class=\"light\"",
@@ -1115,6 +1336,18 @@ void MainWindow::onCloseTab(int index)
     } else {
         close();
     }
+}
+
+void MainWindow::onTabMoved(int from, int to)
+{
+    // Sync QStackedWidget order with tab bar after drag-reorder
+    QWidget *widget = m_stackedWidget->widget(from);
+    m_stackedWidget->removeWidget(widget);
+    m_stackedWidget->insertWidget(to, widget);
+    m_stackedWidget->setCurrentIndex(to);
+
+    // Sync favicon map
+    m_tabBar->reorderFavicons(from, to);
 }
 
 void MainWindow::onTabChanged(int index)
@@ -1150,7 +1383,6 @@ void MainWindow::onUrlChanged(const QUrl &url)
 {
     QWebEngineView *view = qobject_cast<QWebEngineView*>(sender());
     if (view && view == currentWebView()) {
-        addToHistory(url);
         QString urlStr = url.toString();
         if (urlStr.isEmpty() || urlStr == "about:blank" || urlStr.startsWith("data:")) {
             m_addressBar->clear();
@@ -1233,28 +1465,6 @@ void MainWindow::updateNavigationButtons()
     }
 }
 
-void MainWindow::addToHistory(const QUrl &url)
-{
-    if (!url.isValid()) {
-        return;
-    }
-    QString scheme = url.scheme().toLower();
-    if (scheme != "http" && scheme != "https") {
-        return;
-    }
-    QString urlStr = url.toString();
-    if (urlStr.isEmpty() || urlStr == "about:blank" || urlStr.startsWith("data:")) {
-        return;
-    }
-    if (!m_urlHistorySet.contains(urlStr)) {
-        m_urlHistorySet.insert(urlStr);
-        m_urlHistory.append(urlStr);
-        if (m_urlModel) {
-            m_urlModel->setStringList(m_urlHistory);
-        }
-    }
-}
-
 QWebEngineView* MainWindow::currentWebView() const
 {
     return qobject_cast<QWebEngineView*>(m_stackedWidget->currentWidget());
@@ -1271,37 +1481,37 @@ void MainWindow::setupFindBar()
 {
     m_findBar = new QWidget();
     m_findBar->setObjectName("findBar");
-    m_findBar->setFixedHeight(44);
+    m_findBar->setFixedHeight(40);
     m_findBar->hide();
 
     QHBoxLayout *findLayout = new QHBoxLayout(m_findBar);
     findLayout->setContentsMargins(12, 4, 12, 4);
-    findLayout->setSpacing(6);
+    findLayout->setSpacing(4);
 
     m_findEdit = new QLineEdit();
     m_findEdit->setObjectName("findEdit");
     m_findEdit->setPlaceholderText("Find in page...");
-    m_findEdit->setFixedWidth(280);
-    m_findEdit->setFixedHeight(32);
+    m_findEdit->setFixedWidth(260);
+    m_findEdit->setFixedHeight(28);
 
     m_findLabel = new QLabel();
     m_findLabel->setObjectName("findLabel");
 
     m_findPrevBtn = new QPushButton("▲");
     m_findPrevBtn->setObjectName("findButton");
-    m_findPrevBtn->setFixedSize(32, 32);
+    m_findPrevBtn->setFixedSize(28, 28);
     m_findPrevBtn->setToolTip("Previous match");
     m_findPrevBtn->setCursor(Qt::PointingHandCursor);
 
     m_findNextBtn = new QPushButton("▼");
     m_findNextBtn->setObjectName("findButton");
-    m_findNextBtn->setFixedSize(32, 32);
+    m_findNextBtn->setFixedSize(28, 28);
     m_findNextBtn->setToolTip("Next match");
     m_findNextBtn->setCursor(Qt::PointingHandCursor);
 
     m_findCloseBtn = new QPushButton("✕");
     m_findCloseBtn->setObjectName("findCloseButton");
-    m_findCloseBtn->setFixedSize(32, 32);
+    m_findCloseBtn->setFixedSize(28, 28);
     m_findCloseBtn->setToolTip("Close (Esc)");
     m_findCloseBtn->setCursor(Qt::PointingHandCursor);
 
@@ -1575,50 +1785,103 @@ void MainWindow::onAboutPage()
 {
     if (auto *view = currentWebView()) {
         QString aboutHtml = QString(R"(
-            <!DOCTYPE html><html><head><style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
-                   display: flex; align-items: center; justify-content: center;
-                   height: 100vh; background-color: %1; color: %2; }
-            .container { text-align: center; max-width: 600px; padding: 40px; }
-            h1 { font-size: 36px; font-weight: 200; letter-spacing: 4px; margin-bottom: 8px; }
-            .version { font-size: 14px; color: %3; margin-bottom: 32px; }
-            .features { text-align: left; margin: 0 auto; max-width: 400px; }
-            .features h3 { font-size: 14px; font-weight: 600; color: %4;
-                           text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
-            .features .item { font-size: 13px; color: %3; padding: 4px 0; display: flex;
-                              justify-content: space-between; }
-            .features .key { font-family: "SF Mono", Consolas, monospace; font-size: 12px;
-                             background: %5; padding: 2px 8px; border-radius: 4px; color: %4; }
+            <!DOCTYPE html><html><head>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+            <style>
+            *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+            body {
+                font-family: 'DM Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
+                display: flex; align-items: center; justify-content: center;
+                height: 100vh; overflow: hidden;
+                background-color: %1; color: %2;
+            }
+
+            .container {
+                text-align: center; max-width: 520px; padding: 40px;
+                animation: enterUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+            }
+
+            h1 {
+                font-size: 28px; font-weight: 300; letter-spacing: 3px;
+                text-transform: lowercase; margin-bottom: 6px;
+                opacity: 0; animation: fadeIn 0.8s ease 0.1s forwards;
+            }
+
+            .accent-line {
+                display: block; width: 24px; height: 1px;
+                margin: 12px auto 0; background-color: %3;
+                opacity: 0; animation: fadeIn 0.8s ease 0.25s forwards;
+            }
+
+            .version {
+                font-size: 12px; color: %4; margin-top: 12px; letter-spacing: 0.5px;
+                opacity: 0; animation: fadeIn 0.8s ease 0.35s forwards;
+            }
+
+            .features {
+                text-align: left; margin: 28px auto 0; max-width: 380px;
+                opacity: 0; animation: fadeIn 0.8s ease 0.45s forwards;
+            }
+
+            .features h3 {
+                font-size: 10px; font-weight: 500; color: %4;
+                text-transform: uppercase; letter-spacing: 2px;
+                margin: 24px 0 10px; padding-bottom: 6px;
+                border-bottom: 1px solid %3;
+            }
+
+            .features .item {
+                font-size: 13px; color: %5; padding: 5px 0;
+                display: flex; justify-content: space-between; align-items: center;
+            }
+
+            .features .key {
+                font-family: 'Cascadia Code', 'SF Mono', Consolas, monospace;
+                font-size: 11px; background: %6; padding: 2px 8px;
+                border-radius: 4px; color: %4; letter-spacing: 0.3px;
+            }
+
+            @keyframes enterUp {
+                from { transform: translateY(12px); }
+                to   { transform: translateY(0); }
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to   { opacity: 1; }
+            }
             </style></head><body>
             <div class="container">
-                <h1>SLATE</h1>
-                <div class="version">v%6 — A clean slate for web browsing</div>
+                <h1>slate</h1>
+                <div class="accent-line"></div>
+                <div class="version">v%7 — a clean slate for web browsing</div>
                 <div class="features">
-                    <h3>Keyboard Shortcuts</h3>
+                    <h3>shortcuts</h3>
                     <div class="item"><span>New Tab</span><span class="key">Ctrl+T</span></div>
                     <div class="item"><span>Close Tab</span><span class="key">Ctrl+W</span></div>
                     <div class="item"><span>Focus Address Bar</span><span class="key">Ctrl+L</span></div>
                     <div class="item"><span>Reload</span><span class="key">Ctrl+R</span></div>
                     <div class="item"><span>Find in Page</span><span class="key">Ctrl+F</span></div>
-                    <div class="item"><span>Zoom In / Out / Reset</span><span class="key">Ctrl+/- / 0</span></div>
+                    <div class="item"><span>Zoom In / Out / Reset</span><span class="key">Ctrl +/- 0</span></div>
                     <div class="item"><span>Next / Prev Tab</span><span class="key">Ctrl+Tab</span></div>
                     <div class="item"><span>Fullscreen</span><span class="key">F11</span></div>
-                    <div class="item"><span>Print</span><span class="key">Ctrl+P</span></div>
+                    <div class="item"><span>Print to PDF</span><span class="key">Ctrl+P</span></div>
                     <div class="item"><span>Developer Tools</span><span class="key">F12</span></div>
-                    <h3>Privacy</h3>
-                    <div class="item"><span>HTTPS-only mode</span><span class="key">Always on</span></div>
-                    <div class="item"><span>Ad & tracker blocking</span><span class="key">Always on</span></div>
-                    <div class="item"><span>No history saved</span><span class="key">By design</span></div>
-                    <div class="item"><span>No cookies persist</span><span class="key">By design</span></div>
+                    <h3>privacy</h3>
+                    <div class="item"><span>HTTPS-only mode</span><span class="key">always on</span></div>
+                    <div class="item"><span>Ad & tracker blocking</span><span class="key">always on</span></div>
+                    <div class="item"><span>No history saved</span><span class="key">by design</span></div>
+                    <div class="item"><span>No cookies persist</span><span class="key">by design</span></div>
                 </div>
             </div></body></html>
         )").arg(
-            m_isDarkMode ? "#1e1e1e" : "#ffffff",
-            m_isDarkMode ? "#e0e0e0" : "#303030",
-            m_isDarkMode ? "#909090" : "#606060",
-            m_isDarkMode ? "#c0c0c0" : "#404040",
-            m_isDarkMode ? "#2d2d2d" : "#f0f0f0",
+            m_isDarkMode ? "#161619" : "#fafaf9",   // bg
+            m_isDarkMode ? "#c8c8cd" : "#2c2c28",   // text primary
+            m_isDarkMode ? "#2e2e33" : "#d0cfcb",   // accent-line / borders
+            m_isDarkMode ? "#5a5a60" : "#999894",    // muted text
+            m_isDarkMode ? "#8a8a90" : "#65645f",    // item text
+            m_isDarkMode ? "#26262b" : "#ededeb",    // key bg
             QString(SLATE_VERSION)
         );
         view->setHtml(aboutHtml);

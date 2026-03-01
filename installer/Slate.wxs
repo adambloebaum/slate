@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="Slate Browser"
+    Language="1033"
+    Version="$(var.ProductVersion)"
+    Manufacturer="Slate"
+    UpgradeCode="9063d344-a3b6-432e-ae4a-11fd2688bb2c">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Slate is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="ARPPRODUCTICON" Value="SlateIcon" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <Icon Id="SlateIcon" SourceFile="..\src\icons\slate.ico" />
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Slate" />
+      </Directory>
+      <Directory Id="CommonProgramsFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Slate" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="*" Win64="yes">
+        <Shortcut
+          Id="StartMenuShortcut"
+          Name="Slate"
+          Description="Slate Browser"
+          Target="[INSTALLFOLDER]Slate.exe"
+          WorkingDirectory="INSTALLFOLDER"
+          Icon="SlateIcon" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKLM"
+          Key="Software\Slate"
+          Name="installed"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="MainFeature" Title="Slate Browser" Level="1">
+      <ComponentGroupRef Id="HarvestedFiles" />
+      <ComponentRef Id="ApplicationShortcut" />
+    </Feature>
+
+    <UIRef Id="WixUI_InstallDir" />
+  </Product>
+</Wix>
