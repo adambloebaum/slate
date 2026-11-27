@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>About Slate</title>
+    <style>{{style}}</style>
+    <style>
+        body { height: auto; min-height: 100vh; overflow: auto; }
+        .container { width: 460px; }
+        h1 {
+            font-size: 28px; font-weight: 300; letter-spacing: 3px;
+            opacity: 0; animation: fadeIn 0.8s ease 0.1s forwards;
+        }
+        .rule { margin-top: 12px; }
+        .version {
+            font-size: 12px; color: var(--muted); margin-top: 12px; letter-spacing: 0.5px;
+            opacity: 0; animation: fadeIn 0.8s ease 0.35s forwards;
+        }
+        .list {
+            text-align: left; margin-top: 28px;
+            opacity: 0; animation: fadeIn 0.8s ease 0.45s forwards;
+        }
+        .list h3 {
+            font-size: 10px; font-weight: 500; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 2px;
+            margin: 24px 0 10px; padding-bottom: 6px;
+            border-bottom: 1px solid var(--line);
+        }
+        .item {
+            font-size: 13px; color: var(--item); padding: 5px 0;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .key {
+            font-size: 11px; background: var(--chip); padding: 2px 8px;
+            border-radius: 4px; color: var(--muted); letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body class="{{theme}}">
+    <div class="container">
+        <h1>slate</h1>
+        <div class="rule"></div>
+        <div class="version">v{{version}} &middot; the window you open, use, and burn</div>
+        <div class="list">
+            <h3>how it works</h3>
+            <div class="item"><span>Each new tab is a separate session</span><span class="key mono">isolated</span></div>
+            <div class="item"><span>Links a tab opens stay in its session</span><span class="key mono">shared</span></div>
+            <div class="item"><span>Closing a tab destroys its session</span><span class="key mono">in memory only</span></div>
+            <div class="item"><span>Burn everything at once</span><span class="key mono">Ctrl+Shift+Del</span></div>
+            <h3>always on</h3>
+            <div class="item"><span>Ad and tracker blocking</span><span class="key mono">{{domains}} hosts</span></div>
+            <div class="item"><span>HTTPS-only outside your local network</span><span class="key mono">no fallback</span></div>
+            <div class="item"><span>Third-party cookies</span><span class="key mono">blocked</span></div>
+            <div class="item"><span>Camera, mic, location, notifications</span><span class="key mono">denied</span></div>
+            <h3>shortcuts</h3>
+            <div class="item"><span>New tab / close tab</span><span class="key mono">Ctrl+T / Ctrl+W</span></div>
+            <div class="item"><span>Next / previous tab</span><span class="key mono">Ctrl+Tab / Ctrl+Shift+Tab</span></div>
+            <div class="item"><span>Focus address bar</span><span class="key mono">Ctrl+L</span></div>
+            <div class="item"><span>Back / forward</span><span class="key mono">Alt+Left / Alt+Right</span></div>
+            <div class="item"><span>Reload</span><span class="key mono">Ctrl+R / F5</span></div>
+            <div class="item"><span>Find in page</span><span class="key mono">Ctrl+F</span></div>
+            <div class="item"><span>Zoom in / out / reset</span><span class="key mono">Ctrl + / - / 0</span></div>
+            <div class="item"><span>Fullscreen</span><span class="key mono">F11</span></div>
+            <div class="item"><span>Save page as PDF</span><span class="key mono">Ctrl+P</span></div>
+            <div class="item"><span>Developer tools</span><span class="key mono">F12</span></div>
+        </div>
+    </div>
+</body>
+</html>

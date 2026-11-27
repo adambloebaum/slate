@@ -2,6 +2,11 @@
 <RCC version="1.0">
     <qresource prefix="/">
         <file>icons/close.svg</file>
-        <file>styles/slate.qss</file>
+        <file>styles/light.qss</file>
+        <file>styles/dark.qss</file>
+        <file>pages/page.css</file>
+        <file>pages/welcome.html</file>
+        <file>pages/about.html</file>
+        <file>pages/cert-error.html</file>
     </qresource>
 </RCC>

@@ -1,0 +1,260 @@
+/**
+ * Slate Browser — Light theme
+ * Design: "Quiet Confidence" — refined minimalism with warm neutrals
+ */
+
+/* === Foundation === */
+QMainWindow, #centralWidget {
+    background-color: #fafaf9;
+}
+
+/* === Title Bar === */
+#titleBar {
+    background-color: #f2f2f0;
+}
+
+/* === Tab Bar === */
+#slateTabBar {
+    background-color: transparent;
+    border: none;
+    qproperty-drawBase: 0;
+    font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+/* === New Tab Button === */
+#newTabButton {
+    background-color: transparent;
+    border: none;
+    color: #999894;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 17px;
+    font-weight: 300;
+    border-radius: 8px;
+}
+
+#newTabButton:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #65645f;
+}
+
+/* === Window Controls === */
+#windowButton {
+    background-color: transparent;
+    border: none;
+    color: #8a8985;
+    font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+#windowButton:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: #555550;
+}
+
+#closeButton {
+    background-color: transparent;
+    border: none;
+    color: #8a8985;
+    font-family: "Segoe UI Symbol", "Segoe UI", sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+#closeButton:hover {
+    background-color: #e81123;
+    color: #ffffff;
+}
+
+/* === Navigation Bar === */
+#navBar {
+    background-color: #fafaf9;
+}
+
+/* === Navigation Buttons === */
+#navButton {
+    background-color: transparent;
+    border: none;
+    color: #6b6a66;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    border-radius: 8px;
+}
+
+#navButton:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #3a3935;
+}
+
+#navButton:pressed {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+#navButton:disabled {
+    color: #d0cfcb;
+}
+
+/* === Address Bar === */
+#addressBar {
+    background-color: #ededeb;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: #2c2c28;
+    padding: 0px 14px;
+    min-height: 34px;
+    font-family: "Cascadia Code", "SF Mono", "Consolas", monospace;
+    font-size: 13px;
+    selection-background-color: #c4dff6;
+}
+
+#addressBar:focus {
+    background-color: #ffffff;
+    border: 1px solid #c8c8c4;
+}
+
+#addressBar::placeholder {
+    color: #a5a4a0;
+}
+
+/* === Content Area === */
+#contentArea {
+    background-color: #fafaf9;
+}
+
+/* === Loading Bar === */
+#loadingBar {
+    background-color: transparent;
+    border: none;
+    max-height: 2px;
+}
+
+#loadingBar::chunk {
+    background-color: #5ba3d9;
+}
+
+/* === Find Bar === */
+#findBar {
+    background-color: #f2f2f0;
+    border-top: 1px solid #e4e4e1;
+}
+
+#findEdit {
+    background-color: #ffffff;
+    border: 1px solid #dcdcd8;
+    border-radius: 8px;
+    color: #2c2c28;
+    padding: 0px 12px;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+
+#findEdit:focus {
+    border-color: #5ba3d9;
+}
+
+#findLabel {
+    color: #8a8985;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+#findButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #6b6a66;
+    font-size: 11px;
+}
+
+#findButton:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+#findCloseButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 6px;
+    color: #999894;
+    font-size: 12px;
+}
+
+#findCloseButton:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: #3a3935;
+}
+
+/* === Download Bar === */
+#downloadBar {
+    background-color: #f2f2f0;
+    border-top: 1px solid #e4e4e1;
+}
+
+#downloadLabel {
+    color: #2c2c28;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+}
+
+#downloadProgress {
+    background-color: #e4e4e1;
+    border: none;
+    border-radius: 2px;
+}
+
+#downloadProgress::chunk {
+    background-color: #5ba3d9;
+    border-radius: 2px;
+}
+
+/* === Permission Toast === */
+#permissionToast {
+    background-color: #f2f2f0;
+    color: #2c2c28;
+    border-bottom: 1px solid #e4e4e1;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+    padding: 0px 16px;
+}
+
+/* === Session Controls === */
+#blockedLabel {
+    color: #999894;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 11px;
+    padding: 0px 6px;
+}
+
+#burnButton {
+    background-color: transparent;
+    border: 1px solid #d0cfcb;
+    border-radius: 8px;
+    color: #65645f;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 0px 12px;
+}
+
+#burnButton:hover {
+    border-color: #c47a4a;
+    color: #c47a4a;
+}
+
+#burnButton:pressed {
+    background-color: #c47a4a;
+    color: #fafaf9;
+}
+
+/* === Tooltip === */
+QToolTip {
+    background-color: #2c2c28;
+    color: #e8e8e5;
+    border: none;
+    padding: 4px 8px;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+    border-radius: 6px;
+}

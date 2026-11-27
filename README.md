@@ -1,74 +1,97 @@
 # Slate
 
-Your blank slate for web browsing.
+The browser window you open, use, and burn.
 
-Slate is a minimal, privacy-focused web browser built with Qt 6 and Chromium. No history. No bookmarks. No clutter. Just browsing.
+Slate is a small Windows browser for one-off browsing: checking a link you do not trust, signing in to a second account, looking something up without it following you around. Every tab is its own throwaway session, nothing is written to disk, and one button destroys everything.
 
-![Browser Screenshot](/docs/screenshot.png)
+Built with C++17 and Qt 6 WebEngine (Chromium).
 
-## Features
+![Slate](docs/screenshot.png)
 
-- **Privacy First** — No persistent history, cookies, or cache. Permissions denied by default with visible notifications.
-- **HTTPS-Only** — All connections automatically upgraded to HTTPS.
-- **Native Ad Blocking** — Built-in blocker for 100+ ad networks and trackers, with support for external blocklists.
-- **Minimal UI** — Clean, refined interface with just tabs and an address bar. Custom-painted tab bar with favicon support.
-- **Dark & Light Themes** — Toggle between polished dark and light themes with themed scrollbars. Dark by default.
-- **Fast Start** — UI appears immediately while the engine initializes in the background.
-- **Find in Page** — Search within pages with match highlighting.
-- **Zoom Controls** — Per-tab zoom with keyboard shortcuts.
-- **Fullscreen** — F11 for fullscreen mode, with HTML5 fullscreen video support.
-- **Download Manager** — Progress bar and auto-dismissing notifications for file downloads.
-- **Print to PDF** — Save any page as a PDF file.
-- **Developer Tools** — F12 to open Chromium DevTools in a separate window.
-- **Certificate Warnings** — Blocks untrusted connections with a clear, styled error page.
-- **Tab Management** — Middle-click to close tabs, drag to reorder, dynamic tab sizing.
+## How it works
 
-## Keyboard Shortcuts
+- **Every tab is a separate session.** A tab you open gets its own in-memory profile: its own cookies, storage, and cache. Two tabs on the same site do not know about each other, so you can be signed in to two accounts side by side.
+- **Links stay with their tab.** Tabs opened by a page (`target="_blank"`, sign-in popups) share the session of the tab that opened them, so sign-in flows keep working.
+- **Closing a tab destroys its session.** There is no history, no session restore, and no "reopen closed tab".
+- **Burn** (`Ctrl+Shift+Del` or the `burn` button) closes every tab and destroys every session at once.
+
+## Always on
+
+- **Ad and tracker blocking.** Requests to hosts on the [StevenBlack unified hosts list](https://github.com/StevenBlack/hosts) are blocked, with a per-session count in the toolbar. The list is downloaded on first run and refreshed weekly; a small built-in list covers the gap. Pages you navigate to yourself are never blocked.
+- **HTTPS-only.** `http://` requests are upgraded to `https://` with no fallback. Local addresses (`localhost`, `127.0.0.1`, `192.168.x.x`, `*.local`) are exempt so dev servers and router pages work.
+- **Third-party cookies blocked.**
+- **Permissions denied.** Camera, microphone, location, notifications, and screen sharing requests are refused, with a notice saying so.
+- **Downloads ask first.** Nothing is saved until you pick a location.
+- **Untrusted certificates are refused**, with no click-through.
+- **WebRTC does not expose local network addresses.**
+
+## What Slate is not
+
+- **Not an anonymity tool.** Sites still see your IP address, and Slate does nothing about browser fingerprinting. Use Tor Browser for that.
+- **Not a daily driver.** No bookmarks, history, extensions, password manager, or sync, on purpose. Because permissions are always denied, video calls will not work.
+- **Not as current as Chrome.** Slate uses the Chromium that ships with Qt, which trails upstream Chromium security patches by weeks to months. Do not use it for anything where a browser exploit is part of your threat model.
+- **Host-based blocking only.** There is no cosmetic filtering, so ads served from the same host as the content (YouTube, for example) are not blocked.
+
+The only thing Slate writes to disk is its cached copy of the blocklist, in `%LOCALAPPDATA%\Slate`.
+
+## Install
+
+Download the latest release from the [Releases](../../releases) page:
+
+- **`Slate-<version>-windows.msi`** installs to `Program Files\Slate` with a Start Menu shortcut.
+- **`Slate-<version>-windows.zip`** is portable: extract anywhere and run `Slate.exe`.
+
+Both include everything Slate needs. The builds are not code-signed, so Windows SmartScreen will warn on first run; choose "More info" then "Run anyway".
+
+## Keyboard shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+T` | New tab |
-| `Ctrl+W` | Close tab |
+| `Ctrl+T` / `Ctrl+W` | New tab / close tab (and destroy its session) |
+| `Ctrl+Shift+Del` | Burn: close every tab, destroy every session |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
 | `Ctrl+L` | Focus address bar |
-| `Ctrl+R` | Reload page |
+| `Alt+Left` / `Alt+Right` | Back / forward |
+| `Ctrl+R` or `F5` | Reload |
 | `Ctrl+F` | Find in page |
-| `Ctrl+P` | Print to PDF |
-| `Ctrl++` / `Ctrl+-` | Zoom in / out |
-| `Ctrl+0` | Reset zoom |
-| `Ctrl+Tab` | Next tab |
-| `Ctrl+Shift+Tab` | Previous tab |
-| `F11` | Toggle fullscreen |
+| `Ctrl++` / `Ctrl+-` / `Ctrl+0` | Zoom in / out / reset |
+| `Ctrl+P` | Save page as PDF |
+| `F11` | Fullscreen |
 | `F12` | Developer tools |
+| `F1` | About and shortcut list |
 | `Esc` | Exit fullscreen / close find bar |
 
-## Install (Windows)
+## Custom blocklist
 
-Download the latest installer from the [Releases](../../releases) page.
+Put a `blocklist.txt` next to `Slate.exe` to block additional hosts. One entry per line, either a bare domain (`ads.example.com`) or hosts-file format (`0.0.0.0 ads.example.com`). `#` starts a comment. Subdomains of a listed domain are blocked too.
 
-1. Download `Slate-v1.0.0-windows.msi`
-2. Run the installer — installs to `Program Files\Slate` with a Start Menu shortcut
-3. Launch Slate from the Start Menu or `Slate.exe`
+## Build from source
 
-Portable zip also available — extract and run, no install required.
+You need Visual Studio 2022 or later with the "Desktop development with C++" workload, and CMake 3.19+. Then, from PowerShell:
 
-## Build from Source
+```powershell
+.\build.ps1 -InstallQt
+```
 
-**Requirements:** Qt 6 with WebEngine, MSVC 2022, CMake 3.16+
+That downloads Qt 6.10 with WebEngine to `C:\Qt` (about 3 GB, one time, needs [uv](https://docs.astral.sh/uv/)), builds, runs the tests, and leaves a runnable copy in `dist\Slate` plus a portable zip. After the first run, plain `.\build.ps1` is enough.
 
-1. Set `QT_PATH` to your Qt install:
-   ```powershell
-   $env:QT_PATH = "C:\Qt\6.10.1\msvc2022_64"
-   ```
-2. Configure and build:
-   ```powershell
-   cmake -S . -B build -DCMAKE_PREFIX_PATH="$env:QT_PATH"
-   cmake --build build --config Release
-   ```
-3. Run `build\Release\Slate.exe`
+- Already have Qt 6.8 or newer with WebEngine? Set `QT_PATH` (for example `C:\Qt\6.10.3\msvc2022_64`) and skip `-InstallQt`.
+- `.\build.ps1 -Msi` also builds the installer. It needs [WiX Toolset v3](https://wixtoolset.org/docs/wix3/).
 
-## Custom Blocklists
+Every push is built and tested by GitHub Actions. Pushing a `v*` tag publishes the MSI and zip as a release.
 
-Place a `blocklist.txt` file next to `Slate.exe` to load additional blocked domains. The file supports:
-- One domain per line: `ads.example.com`
-- Hosts file format: `0.0.0.0 ads.example.com`
-- Comments with `#`
+## Code map
+
+| File | What it does |
+|------|--------------|
+| `src/MainWindow.cpp` | Window chrome, tabs, and session lifetime |
+| `src/RequestFilter.cpp` | Per-session request interceptor: HTTPS upgrade and blocking |
+| `src/Blocklist.cpp` | Host set: built-in list, hosts-file parser, weekly refresh |
+| `src/UrlInput.cpp` | Address bar text to URL or search |
+| `src/TabBar.cpp` | Custom-painted tab bar |
+| `src/pages/`, `src/styles/` | Internal pages and light/dark themes |
+| `tests/tst_slate.cpp` | Tests for URL parsing and the blocklist |
+
+## License
+
+MIT. See [LICENSE](LICENSE).

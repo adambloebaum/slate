@@ -1,0 +1,42 @@
+/* Shared look for Slate's internal pages (welcome, about, certificate error) */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh; overflow: hidden;
+    background-color: var(--bg); color: var(--text);
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+body.light {
+    --bg: #fafaf9; --text: #2c2c28; --item: #65645f; --muted: #999894;
+    --faint: #b5b4b0; --line: #d0cfcb; --chip: #ededeb; --warn: #c47a4a;
+}
+body.dark {
+    --bg: #161619; --text: #c8c8cd; --item: #8a8a90; --muted: #5a5a60;
+    --faint: #4a4a50; --line: #2e2e33; --chip: #26262b; --warn: #d4976a;
+}
+
+.container {
+    text-align: center; padding: 40px;
+    animation: enterUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.rule {
+    width: 24px; height: 1px; margin: 16px auto 0;
+    background-color: var(--line);
+    opacity: 0; animation: fadeIn 0.8s ease 0.25s forwards;
+}
+
+.mono { font-family: 'Cascadia Code', Consolas, monospace; }
+
+@keyframes enterUp {
+    from { transform: translateY(12px); }
+    to   { transform: translateY(0); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}

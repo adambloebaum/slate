@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Connection not secure</title>
+    <style>{{style}}</style>
+    <style>
+        .container { max-width: 440px; }
+        .shield {
+            width: 48px; height: 48px; margin: 0 auto 24px;
+            border: 2px solid var(--warn); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 600; color: var(--warn);
+            opacity: 0; animation: fadeIn 0.8s ease 0.1s forwards;
+        }
+        h1 {
+            font-size: 18px; font-weight: 500; letter-spacing: 0.5px; margin-bottom: 12px;
+            opacity: 0; animation: fadeIn 0.8s ease 0.2s forwards;
+        }
+        p {
+            font-size: 13px; color: var(--muted); line-height: 1.7;
+            opacity: 0; animation: fadeIn 0.8s ease 0.3s forwards;
+        }
+        .url {
+            font-size: 12px; color: var(--warn); background: var(--chip);
+            padding: 6px 14px; border-radius: 8px; margin-top: 20px;
+            display: inline-block; letter-spacing: 0.3px;
+            opacity: 0; animation: fadeIn 0.8s ease 0.4s forwards;
+        }
+    </style>
+</head>
+<body class="{{theme}}">
+    <div class="container">
+        <div class="shield">!</div>
+        <h1>Connection not secure</h1>
+        <p>Slate blocked this connection because the site's certificate is not trusted. This protects your data from being intercepted.</p>
+        <div class="url mono">{{host}}</div>
+    </div>
+</body>
+</html>
